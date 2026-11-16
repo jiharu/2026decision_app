@@ -304,6 +304,52 @@ function getFilteredItems() {
   });
 }
 
+function hasMeaningfulHtmlContent(html) {
+  if (!html || typeof html !== "string") return false;
+  if (/<table/i.test(html)) return true;
+  const stripped = html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+  return stripped.length > 0;
+}
+
+function getItemQuickJumpState(item) {
+  if (!item || !Array.isArray(item.grayZoneSubItems) || item.grayZoneSubItems.length === 0) {
+    return "default";
+  }
+  const anyUncompletedWithContent = item.grayZoneSubItems.some(
+    (sub) => !sub.isComplete && hasMeaningfulHtmlContent(sub.finalHtml)
+  );
+  if (anyUncompletedWithContent) {
+    return "working";
+  }
+  const anyCompleted = item.grayZoneSubItems.some((sub) => Boolean(sub.isComplete));
+  if (anyCompleted) {
+    return "complete";
+  }
+  return "default";
+}
+
+function applyQuickJumpPillState(pillEl, item) {
+  pillEl.classList.remove("is-working", "is-complete");
+  const state = getItemQuickJumpState(item);
+  if (state === "working") {
+    pillEl.classList.add("is-working");
+  } else if (state === "complete") {
+    pillEl.classList.add("is-complete");
+  }
+}
+
+function updateQuickJumpPillsState() {
+  for (const item of appState.items) {
+    const pill = document.querySelector(`[data-jump-item-id="${item.id}"]`);
+    if (pill) {
+      applyQuickJumpPillState(pill, item);
+    }
+  }
+}
+
 function renderQuickJumpBar(filteredItems) {
   const container = document.getElementById("quick-jump-bar");
   if (!container) return;
@@ -320,14 +366,21 @@ function renderQuickJumpBar(filteredItems) {
     const a = document.createElement("a");
     a.href = `#card-${item.id}`;
     a.className = "jump-pill";
+    a.dataset.jumpItemId = item.id;
     a.textContent = item.code.startsWith("Appendix") ? item.code : `#${item.code}`;
     a.title = `${item.code}: ${item.shortTitle}`;
+    applyQuickJumpPillState(a, item);
     a.addEventListener("click", () => {
       const detailsEl = document.querySelector(`#card-${item.id} > details`);
       if (detailsEl) detailsEl.open = true;
     });
     container.appendChild(a);
   }
+
+  const legend = document.createElement("span");
+  legend.className = "jump-legend";
+  legend.innerHTML = `<span class="legend-item"><span class="legend-swatch working"></span> In Progress (Orange)</span><span class="legend-item"><span class="legend-swatch complete"></span> Complete (Blue)</span>`;
+  container.appendChild(legend);
 }
 
 // ============================================================================
@@ -941,29 +994,35 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   finalTitle.className = "response-box-title";
   finalTitle.textContent = `${num}-2-1-2. Finalized Response (Approved Committee Response)`;
 
-  const copyFromDraftBtn = document.createElement("button");
-  copyFromDraftBtn.type = "button";
-  copyFromDraftBtn.className = "btn btn-sm no-print";
-  copyFromDraftBtn.textContent = "Copy Draft ➔ Final";
-  copyFromDraftBtn.title = "Copy text and tables from Draft into Finalized Response";
+  const completeLabel = document.createElement("label");
+  completeLabel.className = `complete-checkbox-label no-print${sub.isComplete ? " checked" : ""}`;
+  completeLabel.title = "Mark this Finalized Response as Complete (turns Quick Jump button Blue)";
 
-  const { wrapper: finalEditorWidget, editor: finalEditorEl } = createRichEditorWidget({
+  const completeCheckbox = document.createElement("input");
+  completeCheckbox.type = "checkbox";
+  completeCheckbox.checked = Boolean(sub.isComplete);
+  completeCheckbox.addEventListener("change", () => {
+    sub.isComplete = completeCheckbox.checked;
+    completeLabel.classList.toggle("checked", Boolean(sub.isComplete));
+    saveStateLocally();
+    updateQuickJumpPillsState();
+  });
+
+  const completeText = document.createElement("span");
+  completeText.textContent = "Complete";
+  completeLabel.append(completeCheckbox, completeText);
+
+  const { wrapper: finalEditorWidget } = createRichEditorWidget({
     initialHtml: sub.finalHtml,
     placeholder: `${num}-2-1-2. Enter the finalized response here (supports formatted text and tables)...`,
     onChange: (html) => {
       sub.finalHtml = html;
       saveStateLocally();
+      updateQuickJumpPillsState();
     }
   });
 
-  copyFromDraftBtn.addEventListener("click", () => {
-    const currentDraft = sanitizeHTMLString(draftEditorEl.innerHTML);
-    sub.finalHtml = currentDraft;
-    safeSetHTML(finalEditorEl, currentDraft);
-    saveStateLocally();
-  });
-
-  finalHeader.append(finalTitle, copyFromDraftBtn);
+  finalHeader.append(finalTitle, completeLabel);
   finalBox.append(finalHeader, finalEditorWidget);
 
   subCard.append(subTop, assigneeBar, responsesGrid, finalBox);
@@ -1347,6 +1406,7 @@ function restorePreExtractedBriefTemplate() {
           primaryAssignee: curSub.primaryAssignee || defSub.primaryAssignee,
           draftHtml: curSub.draftHtml || "",
           finalHtml: curSub.finalHtml || "",
+          isComplete: Boolean(curSub.isComplete),
           optionalAssignee: curSub.optionalAssignee || "",
           optionalHtml: curSub.optionalHtml || ""
         };
