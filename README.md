@@ -42,7 +42,8 @@ Each item uses its own question number (`N` = `1`..`11`, `A`, `B`) as the prefix
 
 ### Quick Jump Progress Color Indicators
 Located at the top dashboard bar next to `Quick Jump:`:
-- **Default (Monochrome)**: No content in `Finalized Response` and `Complete` is unchecked.
+- **Active Default (High-Contrast Monochrome)**: Committee items requiring input (`#1, #2, #3, #5, #9, #10, #11, Appendix A, Appendix B`) with no `Finalized Response` content yet.
+- **No Input Needed (Grey `#6b7280`)**: Pre-filled items that do not require committee response (**`#4`, `#6`, `#7`, `#8`**).
 - **In Progress (Orange `#ea580c`)**: Automatically turns **Orange** as soon as text or a table is entered into `N-2-1-2. Finalized Response`.
 - **Complete (Blue `#2563eb`)**: Automatically turns **Blue** when the **`[✓] Complete`** checkbox next to `N-2-1-2. Finalized Response` is checked.
 

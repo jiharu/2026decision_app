@@ -183,6 +183,12 @@ function normalizeLoadedState(state) {
     } else if (item.sectionId === "part2") {
       item.sectionLabel = "Part C: Evaluation Criteria";
     }
+    if (["4", "6", "7", "8"].includes(String(item.code))) {
+      item.noResponseNeeded = true;
+      if (!item.status || item.status === "not_started") {
+        item.status = "no_response_needed";
+      }
+    }
   }
   return state;
 }
@@ -245,6 +251,7 @@ function renderDashboardCountsOnly() {
   const counts = {
     all: appState.items.length,
     not_started: 0,
+    no_response_needed: 0,
     needs_data: 0,
     delegate_chair: 0,
     drafting: 0,
@@ -328,13 +335,18 @@ function getItemQuickJumpState(item) {
   if (anyCompleted) {
     return "complete";
   }
+  if (item.noResponseNeeded || item.status === "no_response_needed" || ["4", "6", "7", "8"].includes(String(item.code))) {
+    return "no_response";
+  }
   return "default";
 }
 
 function applyQuickJumpPillState(pillEl, item) {
-  pillEl.classList.remove("is-working", "is-complete");
+  pillEl.classList.remove("is-no-response", "is-working", "is-complete");
   const state = getItemQuickJumpState(item);
-  if (state === "working") {
+  if (state === "no_response") {
+    pillEl.classList.add("is-no-response");
+  } else if (state === "working") {
     pillEl.classList.add("is-working");
   } else if (state === "complete") {
     pillEl.classList.add("is-complete");
@@ -379,7 +391,7 @@ function renderQuickJumpBar(filteredItems) {
 
   const legend = document.createElement("span");
   legend.className = "jump-legend";
-  legend.innerHTML = `<span class="legend-item"><span class="legend-swatch working"></span> In Progress (Orange)</span><span class="legend-item"><span class="legend-swatch complete"></span> Complete (Blue)</span>`;
+  legend.innerHTML = `<span class="legend-item"><span class="legend-swatch no-response"></span> No Input Needed (Grey: #4, #6, #7, #8)</span><span class="legend-item"><span class="legend-swatch working"></span> In Progress (Orange)</span><span class="legend-item"><span class="legend-swatch complete"></span> Complete (Blue)</span>`;
   container.appendChild(legend);
 }
 
@@ -673,7 +685,9 @@ function buildItemCardDOM(item) {
   statusSelect.addEventListener("click", (e) => e.stopPropagation());
   statusSelect.addEventListener("change", (e) => {
     item.status = e.target.value;
+    item.noResponseNeeded = e.target.value === "no_response_needed";
     saveStateLocally();
+    updateQuickJumpPillsState();
   });
 
   const subCountBadge = document.createElement("span");

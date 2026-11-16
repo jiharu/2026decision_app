@@ -20,6 +20,7 @@ const INITIAL_BRIEF_METADATA = {
 
 const STATUS_OPTIONS = [
   { value: "not_started", label: "Not Started", badgeClass: "status-not-started" },
+  { value: "no_response_needed", label: "No Input Needed (Pre-filled by CLT)", badgeClass: "status-no-response" },
   { value: "needs_data", label: "Needs Data / Info Requested", badgeClass: "status-needs-data" },
   { value: "delegate_chair", label: "Delegate to Chair / Other Unit", badgeClass: "status-delegate" },
   { value: "drafting", label: "Draft in Progress", badgeClass: "status-drafting" },
@@ -192,7 +193,8 @@ const INITIAL_ITEMS = [
     sectionId: "part2",
     sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Alignment with University Mission & Academic Plans",
-    status: "not_started",
+    status: "no_response_needed",
+    noResponseNeeded: true,
     questionHtml: `<p><strong>4.</strong> Describe how the proposed modification(s) aligns with the <strong>University’s mission and academic plans</strong>?</p>`,
     existingAnswerHtml: `<p>The proposed co-op stream strengthens OCAD U’s positioning as Canada’s premier art and design university by integrating professional experience directly into creative degree pathways - a model increasingly sought by prospective students and employers alike.</p>
 <p>This major modification aligns strongly with OCAD University’s mission to advance art and design education that drives positive social, cultural, environmental, and economic impact.</p>
@@ -255,7 +257,8 @@ const INITIAL_ITEMS = [
     sectionId: "part2",
     sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Program Learning Outcomes (PLOs) & DLE Alignment",
-    status: "not_started",
+    status: "no_response_needed",
+    noResponseNeeded: true,
     questionHtml: `<p><strong>6.</strong> Describe any changes to the <strong>program learning outcomes</strong> in the proposed modification(s), demonstrating how the changes are consistent with OCAD University’s Undergraduate or Graduate Degree Level Expectations. Inclusion of a curriculum map is recommended for significant changes.</p>`,
     existingAnswerHtml: `<p>Program Learning Outcomes will remain consistent for co-op and non-co-op students, reflecting the intentional design of co-op to enrich and extend, rather than replace, existing curriculum. As all students, regardless of stream, continue to meet the program's PLOs and the associated Undergraduate Degree Level Expectations (DLEs), the proposed modification does not alter the program's alignment with the DLE framework. However, the co-op stream offers an enhanced opportunity for students to reinforce and deepen the 'Autonomy and Professional Capacity' DLE category in particular, through sustained, supervised experience operating independently in a professional work setting — managing responsibilities, exercising professional judgement, and engaging in self-directed learning and reflection beyond the structure of the classroom or studio.</p>
 <p>See curriculum map in Appendix B.</p>`,
@@ -278,7 +281,8 @@ const INITIAL_ITEMS = [
     sectionId: "part2",
     sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Mode of Delivery & Class Formats",
-    status: "not_started",
+    status: "no_response_needed",
+    noResponseNeeded: true,
     questionHtml: `<p><strong>7.</strong> Describe any changes to the program’s <strong>mode of delivery</strong> (e.g., online, synchronous/asynchronous, multi-campus, inter-institutional collaboration, etc.) or class formats and how the changes are appropriate to facilitate the successful completion of the learning outcomes.</p>
 <p>Where the mode of delivery of a program is being changed to online for all or a significant portion of a program, specific commentary must be provided on the following:</p>
 <ol type="a">
@@ -308,7 +312,8 @@ const INITIAL_ITEMS = [
     sectionId: "part2",
     sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Methods of Assessment of Teaching & Learning",
-    status: "not_started",
+    status: "no_response_needed",
+    noResponseNeeded: true,
     questionHtml: `<p><strong>8.</strong> Describe the impact of the proposed modification(s) on <strong>methods of assessment of teaching and learning</strong> and how these methods help students to achieve the program learning outcomes.</p>`,
     existingAnswerHtml: `<p>Methods of assessment of teaching and learning in courses will remain unchanged in the program. The program’s current focus on project-based learning, critique and collaborative learning will position students to thrive in work placements. Through their work term placements, students will have opportunities to reflect on their experience, creating important connections to their lived experience and courses at OCAD U. Students will receive feedback through established practices in the sector including employer evaluations of student performance and work term reflections and reports managed online through the Canvas LMS.</p>`,
     grayZoneSubItems: [

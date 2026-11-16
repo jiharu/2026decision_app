@@ -478,9 +478,9 @@ mark {
   font-weight: 700;
   padding: 0.25rem 0.6rem;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background: var(--bg-page);
-  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   text-decoration: none;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -490,6 +490,18 @@ mark {
   background: var(--accent-primary);
   color: var(--accent-primary-fg);
   border-color: var(--accent-primary);
+}
+
+.jump-pill.is-no-response {
+  background: #6b7280;
+  color: #f3f4f6;
+  border-color: #4b5563;
+}
+
+.jump-pill.is-no-response:hover {
+  background: #4b5563;
+  color: #ffffff;
+  border-color: #374151;
 }
 
 .jump-pill.is-working {
@@ -540,6 +552,10 @@ mark {
   width: 10px;
   height: 10px;
   border-radius: 2px;
+}
+
+.legend-swatch.no-response {
+  background: #6b7280;
 }
 
 .legend-swatch.working {
