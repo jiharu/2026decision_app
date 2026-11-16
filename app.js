@@ -356,7 +356,7 @@ function createRichEditorWidget({ initialHtml, placeholder, onChange }) {
     try {
       range.surroundContents(mark);
     } catch {
-      document.execCommand("hiliteColor", false, "#fef08a");
+      document.execCommand("hiliteColor", false, "#e5e5e5");
     }
   });
 
@@ -989,7 +989,7 @@ function buildAttachmentsBlockDOM(item) {
       chip.className = "attachment-chip";
 
       const icon = document.createElement("span");
-      icon.textContent = att.type === "file" ? "📎" : "🔗";
+      icon.textContent = att.type === "file" ? "[File]" : "[Link]";
 
       const link = document.createElement("a");
       link.href = att.url || "#";
@@ -1062,7 +1062,7 @@ function buildAttachmentsBlockDOM(item) {
   const addFileBtn = document.createElement("button");
   addFileBtn.type = "button";
   addFileBtn.className = "btn btn-sm btn-secondary";
-  addFileBtn.textContent = "📎 Attach File (≤ 2MB)";
+  addFileBtn.textContent = "+ Attach File (≤ 2MB)";
   addFileBtn.addEventListener("click", () => fileInput.click());
 
   fileInput.addEventListener("change", () => {
