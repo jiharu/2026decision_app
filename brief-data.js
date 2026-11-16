@@ -2,8 +2,8 @@
  * Pre-extracted IQAP Major Modification Proposal Brief Data
  * Source: EXAN Coop Major Mod Brief.pdf (Template Last Updated: June 2023)
  * Structure:
- *  - Part I (Part B: Proposed Major Modification): Items 1, 2, 3
- *  - Part II (Part C: Evaluation Criteria): Items 4, 5, 6, 7, 8, 9, 10, 11
+ *  - Part B: Proposed Major Modification: Items 1, 2, 3
+ *  - Part C: Evaluation Criteria: Items 4, 5, 6, 7, 8, 9, 10, 11
  *  - Appendixes: Items A, B
  */
 
@@ -34,7 +34,7 @@ const INITIAL_ITEMS = [
     id: "item-1",
     code: "1",
     sectionId: "part1",
-    sectionLabel: "Part I (Part B: Proposed Major Modification)",
+    sectionLabel: "Part B: Proposed Major Modification",
     shortTitle: "Program Background, Modification Description & Rationale",
     status: "drafting",
     questionHtml: `<p><strong>1.</strong> Provide a brief background of the existing program, a detailed description of the proposed modification(s), and rationale for the change. Consider how the change reflects the ongoing evolution of the discipline, and responds to the changing needs of students, society and industry. If applicable, highlight any unique program or curriculum innovations.</p>`,
@@ -87,7 +87,7 @@ const INITIAL_ITEMS = [
     id: "item-2",
     code: "2",
     sectionId: "part1",
-    sectionLabel: "Part I (Part B: Proposed Major Modification)",
+    sectionLabel: "Part B: Proposed Major Modification",
     shortTitle: "Consultation with Academic & Support Units",
     status: "delegate_chair",
     questionHtml: `<p><strong>2.</strong> Summarize the <strong>consultation</strong> undertaken with relevant academic units, including commentary on the impact of the proposed modification(s) on other programs. Consultation should include the academic leadership of other Faculties that offer courses required or elective in the program, Budget &amp; Planning and Institutional Analysis, Admissions &amp; Recruitment (e.g. regarding timeline of implementation and communication), and the heads of support units such as the Library, Registrar (including Advising), IT Services, Facilities &amp; Studio Services, Centre for Emerging Artists and Designers and the Faculty &amp; Curriculum Development Centre, as applicable.</p>`,
@@ -150,7 +150,7 @@ const INITIAL_ITEMS = [
     id: "item-3",
     code: "3",
     sectionId: "part1",
-    sectionLabel: "Part I (Part B: Proposed Major Modification)",
+    sectionLabel: "Part B: Proposed Major Modification",
     shortTitle: "Student & Alumni Consultation and Transition Pathways",
     status: "needs_data",
     questionHtml: `<p><strong>3.</strong> Describe how current students and recent graduates of the program were consulted on the proposed modification and include a statement on the way in which the major modification will impact or improve the <strong>student experience</strong>. Explain in detail plans to ensure a smooth transition for current students. As appropriate, in consultation with the Office of the Registrar, map transition pathways for all categories of students: full-time, part-time, those off the model route, those with accommodations, etc.</p>`,
@@ -190,7 +190,7 @@ const INITIAL_ITEMS = [
     id: "item-4",
     code: "4",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Alignment with University Mission & Academic Plans",
     status: "not_started",
     questionHtml: `<p><strong>4.</strong> Describe how the proposed modification(s) aligns with the <strong>University’s mission and academic plans</strong>?</p>`,
@@ -220,7 +220,7 @@ const INITIAL_ITEMS = [
     id: "item-5",
     code: "5",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Admissions & Program Requirements / Sequencing Changes",
     status: "needs_data",
     questionHtml: `<p><strong>5.</strong> Describe any changes of the proposed modification(s) to the <strong>admissions and/or program requirements</strong>. Explain how the proposed changes are in alignment with the relevant program-level learning outcomes. Include a revised program guide indicating changes to the program structure, including new courses and courses no longer required, research components, and required or elective courses provided by other units; describe any experiential or other applied learning opportunities that are part of the new or revised program component.</p>`,
@@ -253,7 +253,7 @@ const INITIAL_ITEMS = [
     id: "item-6",
     code: "6",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Program Learning Outcomes (PLOs) & DLE Alignment",
     status: "not_started",
     questionHtml: `<p><strong>6.</strong> Describe any changes to the <strong>program learning outcomes</strong> in the proposed modification(s), demonstrating how the changes are consistent with OCAD University’s Undergraduate or Graduate Degree Level Expectations. Inclusion of a curriculum map is recommended for significant changes.</p>`,
@@ -276,7 +276,7 @@ const INITIAL_ITEMS = [
     id: "item-7",
     code: "7",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Mode of Delivery & Class Formats",
     status: "not_started",
     questionHtml: `<p><strong>7.</strong> Describe any changes to the program’s <strong>mode of delivery</strong> (e.g., online, synchronous/asynchronous, multi-campus, inter-institutional collaboration, etc.) or class formats and how the changes are appropriate to facilitate the successful completion of the learning outcomes.</p>
@@ -306,7 +306,7 @@ const INITIAL_ITEMS = [
     id: "item-8",
     code: "8",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Methods of Assessment of Teaching & Learning",
     status: "not_started",
     questionHtml: `<p><strong>8.</strong> Describe the impact of the proposed modification(s) on <strong>methods of assessment of teaching and learning</strong> and how these methods help students to achieve the program learning outcomes.</p>`,
@@ -328,7 +328,7 @@ const INITIAL_ITEMS = [
     id: "item-9",
     code: "9",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Faculty Knowledge, Expertise & Industry/Community Partnerships",
     status: "delegate_chair",
     questionHtml: `<p><strong>9.</strong> Describe <strong>how the current knowledge and expertise of faculty will meet the needs of the proposed modification(s)</strong> and describe any other faculty or instructional staff implications for the proposed changes.</p>`,
@@ -350,7 +350,7 @@ const INITIAL_ITEMS = [
     id: "item-10",
     code: "10",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Anticipated Impacts on Resource Requirements (a–d)",
     status: "needs_data",
     questionHtml: `<p><strong>10.</strong> Describe the anticipated impacts on <strong>resource requirements</strong>. Include:</p>
@@ -405,7 +405,7 @@ Implementation will require:</p>
     id: "item-11",
     code: "11",
     sectionId: "part2",
-    sectionLabel: "Part II (Part C: Evaluation Criteria)",
+    sectionLabel: "Part C: Evaluation Criteria",
     shortTitle: "Overall Changes to Expected Funding Requirements",
     status: "needs_data",
     questionHtml: `<p><strong>11.</strong> Provide a summary of overall changes to expected <strong>funding requirements</strong>, including changes to ongoing funding and any start-up costs. Please include a <strong>statement of availability of resources</strong> by the Dean(s) involved, with reference, as applicable, to consultations with the Office of the Vice-President, Academic and Provost</p>`,

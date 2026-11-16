@@ -175,13 +175,29 @@ function cloneDefaultState() {
   };
 }
 
+function normalizeLoadedState(state) {
+  if (!state || !Array.isArray(state.items)) return state;
+  for (const item of state.items) {
+    if (item.sectionId === "part1") {
+      item.sectionLabel = "Part B: Proposed Major Modification";
+    } else if (item.sectionId === "part2") {
+      item.sectionLabel = "Part C: Evaluation Criteria";
+    }
+  }
+  return state;
+}
+
+function getItemPrefix(item) {
+  return String(item.code || "1").replace(/^Appendix\s+/i, "").trim();
+}
+
 function loadInitialState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        return parsed;
+        return normalizeLoadedState(parsed);
       }
     }
   } catch (err) {
@@ -627,8 +643,10 @@ function buildItemCardDOM(item) {
   const body = document.createElement("div");
   body.className = "item-body";
 
+  const num = getItemPrefix(item);
+
   // -------------------------------------------------------------------------
-  // 1. Question / Prompt Block
+  // N. Question / Prompt Block
   // -------------------------------------------------------------------------
   const qBlock = document.createElement("section");
   qBlock.className = "block-question";
@@ -638,7 +656,7 @@ function buildItemCardDOM(item) {
 
   const qLabel = document.createElement("span");
   qLabel.className = "block-label";
-  qLabel.textContent = "1. Question / Prompt (IQAP Major Modification Brief)";
+  qLabel.textContent = `${num}. Question / Prompt (IQAP Major Modification Brief)`;
 
   const qEditBtn = document.createElement("button");
   qEditBtn.type = "button";
@@ -673,7 +691,7 @@ function buildItemCardDOM(item) {
 
     const { wrapper: qEditor } = createRichEditorWidget({
       initialHtml: item.questionHtml,
-      placeholder: "Enter the question or prompt for Section 1...",
+      placeholder: `Enter the question or prompt for Item ${num}...`,
       onChange: (html) => {
         item.questionHtml = html;
         saveStateLocally();
@@ -688,14 +706,14 @@ function buildItemCardDOM(item) {
   }
 
   // -------------------------------------------------------------------------
-  // 2-1. Existing / Pre-filled Answer Block
+  // N-1. Existing / Pre-filled Answer Block
   // -------------------------------------------------------------------------
   const exDetails = document.createElement("details");
   exDetails.className = "block-existing";
   exDetails.open = existingOpenState[item.id] ?? false;
 
   const exSummary = document.createElement("summary");
-  exSummary.innerHTML = `<span>2-1. Existing / Pre-filled Answer Input (Pre-populated by CLT / Administration — click to expand or edit)</span><span style="font-size:0.76rem;color:var(--text-muted);">Expand / Collapse ▾</span>`;
+  exSummary.innerHTML = `<span>${num}-1. Existing / Pre-filled Answer Input (Pre-populated by CLT / Administration — click to expand or edit)</span><span style="font-size:0.76rem;color:var(--text-muted);">Expand / Collapse ▾</span>`;
 
   exDetails.addEventListener("toggle", () => {
     existingOpenState[item.id] = exDetails.open;
@@ -706,7 +724,7 @@ function buildItemCardDOM(item) {
 
   const { wrapper: exEditor } = createRichEditorWidget({
     initialHtml: item.existingAnswerHtml,
-    placeholder: "2-1. Enter or edit the existing pre-filled answer text or tables...",
+    placeholder: `${num}-1. Enter or edit the existing pre-filled answer text or tables...`,
     onChange: (html) => {
       item.existingAnswerHtml = html;
       saveStateLocally();
@@ -716,7 +734,7 @@ function buildItemCardDOM(item) {
   exDetails.append(exSummary, exContent);
 
   // -------------------------------------------------------------------------
-  // 2-2. GRAY ZONE (Faculty Committee Core Workspace — Dissected Sub-items)
+  // N-2. GRAY ZONE (Faculty Committee Core Workspace — Dissected Sub-items)
   // -------------------------------------------------------------------------
   const gzBlock = document.createElement("section");
   gzBlock.className = "block-gray-zone";
@@ -726,7 +744,7 @@ function buildItemCardDOM(item) {
 
   const gzTitle = document.createElement("h3");
   gzTitle.className = "gray-zone-title";
-  gzTitle.innerHTML = `<span class="gray-zone-pill">2-2. GRAY ZONE</span> <span>Faculty Committee Core Workspace (Dissect &amp; Assign)</span>`;
+  gzTitle.innerHTML = `<span class="gray-zone-pill">${num}-2. GRAY ZONE</span> <span>Faculty Committee Core Workspace (Dissect &amp; Assign)</span>`;
 
   const addSubBtn = document.createElement("button");
   addSubBtn.type = "button";
@@ -771,6 +789,7 @@ function buildItemCardDOM(item) {
 }
 
 function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
+  const num = getItemPrefix(item);
   const subCard = document.createElement("div");
   subCard.className = "subitem-card";
 
@@ -783,7 +802,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const indexTag = document.createElement("span");
   indexTag.className = "subitem-index-tag";
-  indexTag.textContent = `Dissected Part #${idx + 1} (${item.code}.${idx + 1})`;
+  indexTag.textContent = `Dissected Part #${idx + 1} (${num}-2 · Part ${idx + 1})`;
 
   const delBtn = document.createElement("button");
   delBtn.type = "button";
@@ -814,7 +833,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   subTop.append(subTopBar, promptTextarea);
 
-  // 2-2-1. Primary Assignee (Who Can Answer — Free-text Input)
+  // N-2-1. Primary Assignee (Who Can Answer — Free-text Input)
   const assigneeBar = document.createElement("div");
   assigneeBar.className = "assignee-bar";
 
@@ -822,7 +841,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   assigneeLabel.className = "assignee-label";
   const assigneeInputId = `primary-assignee-${sub.id}`;
   assigneeLabel.htmlFor = assigneeInputId;
-  assigneeLabel.textContent = "2-2-1. Who Can Answer (Primary Responder / Assignee):";
+  assigneeLabel.textContent = `${num}-2-1. Who Can Answer (Primary Responder / Assignee):`;
 
   const assigneeInput = document.createElement("input");
   assigneeInput.id = assigneeInputId;
@@ -837,11 +856,11 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   assigneeBar.append(assigneeLabel, assigneeInput);
 
-  // 2-2-1-1 (Draft) & 2-2-1-2 (Finalized) Side-by-Side Grid
+  // N-2-1-1 (Draft) & N-2-1-2 (Finalized) Side-by-Side Grid
   const responsesGrid = document.createElement("div");
   responsesGrid.className = "responses-grid";
 
-  // 2-2-1-1 Draft Box
+  // N-2-1-1 Draft Box
   const draftBox = document.createElement("div");
   draftBox.className = "response-box draft-box";
 
@@ -850,13 +869,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const draftTitle = document.createElement("span");
   draftTitle.className = "response-box-title";
-  draftTitle.textContent = "2-2-1-1. Draft Response (Working Draft, Notes & Missing Data Flags)";
+  draftTitle.textContent = `${num}-2-1-1. Draft Response (Working Draft, Notes & Missing Data Flags)`;
 
   draftHeader.appendChild(draftTitle);
 
   const { wrapper: draftEditorWidget, editor: draftEditorEl } = createRichEditorWidget({
     initialHtml: sub.draftHtml,
-    placeholder: "2-2-1-1. Enter the draft response here (supports formatted text and tables)...",
+    placeholder: `${num}-2-1-1. Enter the draft response here (supports formatted text and tables)...`,
     onChange: (html) => {
       sub.draftHtml = html;
       saveStateLocally();
@@ -865,7 +884,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   draftBox.append(draftHeader, draftEditorWidget);
 
-  // 2-2-1-2 Finalized Box
+  // N-2-1-2 Finalized Box
   const finalBox = document.createElement("div");
   finalBox.className = "response-box final-box";
 
@@ -874,7 +893,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const finalTitle = document.createElement("span");
   finalTitle.className = "response-box-title";
-  finalTitle.textContent = "2-2-1-2. Finalized Response (Approved Committee Response)";
+  finalTitle.textContent = `${num}-2-1-2. Finalized Response (Approved Committee Response)`;
 
   const copyFromDraftBtn = document.createElement("button");
   copyFromDraftBtn.type = "button";
@@ -884,7 +903,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const { wrapper: finalEditorWidget, editor: finalEditorEl } = createRichEditorWidget({
     initialHtml: sub.finalHtml,
-    placeholder: "2-2-1-2. Enter the finalized response here (supports formatted text and tables)...",
+    placeholder: `${num}-2-1-2. Enter the finalized response here (supports formatted text and tables)...`,
     onChange: (html) => {
       sub.finalHtml = html;
       saveStateLocally();
@@ -903,7 +922,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   responsesGrid.append(draftBox, finalBox);
 
-  // 2-2-2. Optional Responder (Anyone Else Who Wants to Answer)
+  // N-2-2. Optional Responder (Anyone Else Who Wants to Answer)
   const optBox = document.createElement("div");
   optBox.className = "response-box optional-box";
 
@@ -920,7 +939,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   const optInputId = `opt-assignee-${sub.id}`;
   optTitle.htmlFor = optInputId;
   optTitle.className = "response-box-title";
-  optTitle.textContent = "2-2-2. Optional Responder (Who else wants to contribute / comment):";
+  optTitle.textContent = `${num}-2-2. Optional Responder (Who else wants to contribute / comment):`;
 
   const optInput = document.createElement("input");
   optInput.id = optInputId;
@@ -938,7 +957,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const { wrapper: optEditorWidget } = createRichEditorWidget({
     initialHtml: sub.optionalHtml,
-    placeholder: "2-2-2. Enter optional response, additional perspective, or supporting tables...",
+    placeholder: `${num}-2-2. Enter optional response, additional perspective, or supporting tables...`,
     onChange: (html) => {
       sub.optionalHtml = html;
       saveStateLocally();
@@ -952,9 +971,10 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 }
 
 // ============================================================================
-// 2-3. Supporting Data & Attachments (OneDrive Links + Local File Upload)
+// N-3. Supporting Data & Attachments (OneDrive Links + Local File Upload)
 // ============================================================================
 function buildAttachmentsBlockDOM(item) {
+  const num = getItemPrefix(item);
   const block = document.createElement("section");
   block.className = "block-attachments";
 
@@ -965,7 +985,7 @@ function buildAttachmentsBlockDOM(item) {
   const label = document.createElement("span");
   label.className = "block-label";
   label.style.color = "var(--text-secondary)";
-  label.textContent = "2-3. Supporting Data & Attached Documents (OneDrive Shared Links / File Attachments)";
+  label.textContent = `${num}-3. Supporting Data & Attached Documents (OneDrive Shared Links / File Attachments)`;
 
   header.appendChild(label);
   block.appendChild(header);
@@ -1172,7 +1192,7 @@ async function pullFromGitHub(silent = false) {
     }
 
     if (incomingState && Array.isArray(incomingState.items)) {
-      appState = incomingState;
+      appState = normalizeLoadedState(incomingState);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
       renderMetadataFields();
       renderItemsList();
@@ -1278,7 +1298,7 @@ function importWorkspaceJSON(file) {
         loaded = await decryptWorkspacePayload(parsed, pass);
       }
       if (loaded && Array.isArray(loaded.items)) {
-        appState = loaded;
+        appState = normalizeLoadedState(loaded);
         saveStateLocally("Restored workspace from JSON file");
         renderMetadataFields();
         renderItemsList();

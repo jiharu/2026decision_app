@@ -4,16 +4,19 @@
 - **Purpose**: A decision-support web application designed for the **Experimental Animation (EXAN) Curriculum Committee** at OCAD University to systematically dissect, assign, draft, and finalize responses for the **IQAP Major Modifications Proposal Brief (Co-op & Trimesterization)** under tight timelines and limited data conditions.
 - **Core Capabilities**:
   - Pre-populated with all 13 items from the **IQAP Major Modification Proposal Brief**:
-    - **Part I (Part B: Proposed Major Modification)**: Items `1`, `2`, `3`
-    - **Part II (Part C: Evaluation Criteria)**: Items `4`, `5`, `6`, `7`, `8`, `9`, `10`, `11`
+    - **Part B: Proposed Major Modification**: Items `1`, `2`, `3`
+    - **Part C: Evaluation Criteria**: Items `4`, `5`, `6`, `7`, `8`, `9`, `10`, `11`
     - **Appendixes**: `Appendix A`, `Appendix B`
-  - Clearly separates **1. Question / Prompt**, **2-1. Existing / Pre-filled Answer** (pre-populated by CLT/administration), and **2-2. Gray Zone** (the core workspace where the faculty committee dissects and responds to required items).
+  - Uses each item's question number (`N` = `1`..`11`, `A`, `B`) as the prefix across its workspace sections:
+    - **`N. Question / Prompt`**
+    - **`N-1. Existing / Pre-filled Answer`** (pre-populated by CLT/administration)
+    - **`N-2. Gray Zone`** (the core workspace where the faculty committee dissects and responds to required items)
   - Supports **multi-part Gray Zone Dissection (`+ Add Dissected Sub-item`)** so complex questions can be split into sub-issues, each with:
-    - **2-2-1. Who Can Answer (Primary Responder / Assignee)** — free-text input
-    - **2-2-1-1. Draft Response** — rich text and interactive table editor (supports direct Excel/Word table copy-paste)
-    - **2-2-1-2. Finalized Response** — rich text and interactive table editor with 1-click `Copy Draft ➔ Final`
-    - **2-2-2. Optional Responder** — free-text contributor field and rich text/table response editor
-  - **2-3. Supporting Data & Attached Documents** — link directly to institutional OneDrive (`Share with specific members`) files or attach files up to 2MB.
+    - **`N-2-1. Who Can Answer (Primary Responder / Assignee)`** — free-text input
+    - **`N-2-1-1. Draft Response`** — rich text and interactive table editor (supports direct Excel/Word table copy-paste)
+    - **`N-2-1-2. Finalized Response`** — rich text and interactive table editor with 1-click `Copy Draft ➔ Final`
+    - **`N-2-2. Optional Responder`** — free-text contributor field and rich text/table response editor
+  - **`N-3. Supporting Data & Attached Documents`** — link directly to institutional OneDrive (`Share with specific members`) files or attach files up to 2MB.
   - **Status Dashboard & Filtering** — filter items by section, keyword search, or status (`Not Started`, `Needs Data / Info Requested`, `Delegate to Chair / Other Unit`, `Draft in Progress`, `Finalized`).
 
 ---
