@@ -25,6 +25,7 @@ Each item uses its own question number (`N` = `1`..`11`, `A`, `B`) as the prefix
  │    └── Reference Data & Stakeholder Input Bar (item-specific quick buttons):
  │         • Item #1:  [↗ Original Proposal for the New EXAN Program]
  │         • Item #2:  [▣ Program Chair Input]
+ │         • Item #3:  [▣ CLT Input]  [↗ Student Survey]
  │         • Item #4:  [↗ Curriculum Map]
  │         • Item #9:  [▣ Program Chair Input]  [▣ Dean Input]
  │         • Item #11: [▣ Dean Input]

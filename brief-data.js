@@ -199,6 +199,22 @@ const INITIAL_ITEMS = [
         optionalHtml: ""
       }
     ],
+    questionLinks: [
+      {
+        id: "qlink-3-clt",
+        label: "CLT Input",
+        kind: "input",
+        url: "",
+        notesHtml: ""
+      },
+      {
+        id: "qlink-3-survey",
+        label: "Student Survey",
+        kind: "document",
+        url: "",
+        notesHtml: ""
+      }
+    ],
     attachments: []
   },
 
