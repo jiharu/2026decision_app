@@ -52,7 +52,6 @@ export function sanitizeHTMLString(rawHtml) {
           continue;
         }
         if (!allowedSet.has(tag)) {
-          // Replace unknown wrapper element with its sanitized children
           cleanNode(child);
           child.replaceWith(...Array.from(child.childNodes));
           continue;
@@ -191,7 +190,7 @@ function loadInitialState() {
   return cloneDefaultState();
 }
 
-function saveStateLocally(statusMsg = "로컬 자동 저장됨 (Auto-saved)") {
+function saveStateLocally(statusMsg = "Auto-saved locally") {
   appState.metadata.lastUpdated = new Date().toISOString();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
@@ -199,7 +198,7 @@ function saveStateLocally(statusMsg = "로컬 자동 저장됨 (Auto-saved)") {
     renderDashboardCountsOnly();
   } catch (err) {
     console.error("Local save error:", err);
-    updateSyncStatusUI("warning", "저장 용량 초과 주의 (JSON 백업 권장)");
+    updateSyncStatusUI("warning", "Local storage full — please export JSON backup");
   }
 }
 
@@ -298,7 +297,7 @@ function renderQuickJumpBar(filteredItems) {
   label.style.fontSize = "0.78rem";
   label.style.fontWeight = "700";
   label.style.color = "var(--text-muted)";
-  label.textContent = "문항 바로가기 (Quick Jump):";
+  label.textContent = "Quick Jump:";
   container.appendChild(label);
 
   for (const item of filteredItems) {
@@ -328,7 +327,7 @@ function createRichEditorWidget({ initialHtml, placeholder, onChange }) {
   const editor = document.createElement("div");
   editor.className = "rich-editor";
   editor.contentEditable = "true";
-  editor.dataset.placeholder = placeholder || "여기에 텍스트나 표(Table)를 입력하세요 (엑셀/워드 표 붙여넣기 가능)...";
+  editor.dataset.placeholder = placeholder || "Enter text or insert a table here (you can also paste tables directly from Excel or Word)...";
   safeSetHTML(editor, initialHtml || "");
 
   const addToolButton = (label, title, onClick) => {
@@ -346,10 +345,10 @@ function createRichEditorWidget({ initialHtml, placeholder, onChange }) {
     toolbar.appendChild(btn);
   };
 
-  addToolButton("B", "굵게 (Bold)", () => document.execCommand("bold"));
-  addToolButton("I", "기울임 (Italic)", () => document.execCommand("italic"));
-  addToolButton("• 목록", "글머리 기호 목록 (Bullet List)", () => document.execCommand("insertUnorderedList"));
-  addToolButton("형광펜", "하이라이트 (Highlight)", () => {
+  addToolButton("B", "Bold", () => document.execCommand("bold"));
+  addToolButton("I", "Italic", () => document.execCommand("italic"));
+  addToolButton("• List", "Bullet List", () => document.execCommand("insertUnorderedList"));
+  addToolButton("Highlight", "Highlight selected text", () => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
     const range = sel.getRangeAt(0);
@@ -361,19 +360,19 @@ function createRichEditorWidget({ initialHtml, placeholder, onChange }) {
     }
   });
 
-  addToolButton("+ 표 삽입 (Table)", "3x3 기본 표 삽입", () => {
+  addToolButton("+ Insert Table", "Insert a 3x3 table", () => {
     insertTableAtCursor(editor, 3, 3);
   });
 
-  addToolButton("+ 행 추가", "현재 표에 행(Row) 추가", () => {
+  addToolButton("+ Row", "Add a row to the active table", () => {
     modifyActiveTable(editor, "add-row");
   });
 
-  addToolButton("+ 열 추가", "현재 표에 열(Column) 추가", () => {
+  addToolButton("+ Column", "Add a column to the active table", () => {
     modifyActiveTable(editor, "add-col");
   });
 
-  addToolButton("- 행 삭제", "현재 표의 마지막/선택 행 삭제", () => {
+  addToolButton("- Delete Row", "Delete the current or last row in the table", () => {
     modifyActiveTable(editor, "del-row");
   });
 
@@ -423,7 +422,7 @@ function buildTableHtmlFromMatrix(rows) {
   }
   html += `</tr></thead><tbody>`;
   if (body.length === 0) {
-    html += `<tr>${header.map((_, idx) => (idx === 0 ? "<th>내용</th>" : "<td>내용</td>")).join("")}</tr>`;
+    html += `<tr>${header.map((_, idx) => (idx === 0 ? "<th>Row 1</th>" : "<td></td>")).join("")}</tr>`;
   } else {
     for (const r of body) {
       html += `<tr>`;
@@ -448,13 +447,13 @@ function insertTableAtCursor(editorEl, numRows = 3, numCols = 3) {
   const matrix = [];
   const headers = [];
   for (let c = 1; c <= numCols; c++) {
-    headers.push(`항목 ${c}`);
+    headers.push(`Column ${c}`);
   }
   matrix.push(headers);
   for (let r = 1; r < numRows; r++) {
     const row = [];
     for (let c = 1; c <= numCols; c++) {
-      row.push(c === 1 ? `구분 ${r}` : "");
+      row.push(c === 1 ? `Item ${r}` : "");
     }
     matrix.push(row);
   }
@@ -511,7 +510,7 @@ function modifyActiveTable(editorEl, action) {
   } else if (action === "add-col") {
     if (theadRow) {
       const th = document.createElement("th");
-      th.textContent = `항목 ${colCount + 1}`;
+      th.textContent = `Column ${colCount + 1}`;
       theadRow.appendChild(th);
     }
     for (const tr of tbody.querySelectorAll("tr")) {
@@ -548,7 +547,7 @@ function renderItemsList() {
     const empty = document.createElement("div");
     empty.className = "dashboard-panel";
     empty.style.textAlign = "center";
-    empty.textContent = "선택한 필터/검색 조건에 해당하는 문항이 없습니다.";
+    empty.textContent = "No items match the selected filter or search criteria.";
     listEl.appendChild(empty);
     return;
   }
@@ -576,7 +575,7 @@ function buildItemCardDOM(item) {
 
   const codeBadge = document.createElement("span");
   codeBadge.className = "item-code-badge";
-  codeBadge.textContent = item.code.startsWith("Appendix") ? item.code : `문항 #${item.code}`;
+  codeBadge.textContent = item.code.startsWith("Appendix") ? item.code : `Item #${item.code}`;
 
   const secTag = document.createElement("span");
   secTag.className = "item-section-tag";
@@ -594,7 +593,7 @@ function buildItemCardDOM(item) {
   // Status selector
   const statusSelect = document.createElement("select");
   statusSelect.className = "auto-fit-select";
-  statusSelect.setAttribute("aria-label", `${item.code} 진행 상태 선택`);
+  statusSelect.setAttribute("aria-label", `Select status for ${item.code}`);
   for (const opt of STATUS_OPTIONS) {
     const o = document.createElement("option");
     o.value = opt.value;
@@ -610,7 +609,7 @@ function buildItemCardDOM(item) {
 
   const subCountBadge = document.createElement("span");
   subCountBadge.className = "status-badge status-not-started";
-  subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length}개 항목`;
+  subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length} sub-item(s)`;
 
   headerRight.append(subCountBadge, statusSelect);
   summary.append(headerLeft, headerRight);
@@ -619,7 +618,7 @@ function buildItemCardDOM(item) {
   body.className = "item-body";
 
   // -------------------------------------------------------------------------
-  // 1. 문제 항목 (Question / Prompt Block)
+  // 1. Question / Prompt Block
   // -------------------------------------------------------------------------
   const qBlock = document.createElement("section");
   qBlock.className = "block-question";
@@ -629,13 +628,13 @@ function buildItemCardDOM(item) {
 
   const qLabel = document.createElement("span");
   qLabel.className = "block-label";
-  qLabel.textContent = "1. 문제 항목 (IQAP Brief Question / Prompt)";
+  qLabel.textContent = "1. Question / Prompt (IQAP Major Modification Brief)";
 
   const qEditBtn = document.createElement("button");
   qEditBtn.type = "button";
   qEditBtn.className = "btn btn-sm no-print";
   const isEditingQ = Boolean(questionEditMode[item.id]);
-  qEditBtn.textContent = isEditingQ ? "문제 편집 완료" : "문제/제목 직접 수정";
+  qEditBtn.textContent = isEditingQ ? "Done Editing Question" : "Edit Question / Title";
   qEditBtn.addEventListener("click", () => {
     questionEditMode[item.id] = !questionEditMode[item.id];
     renderItemsList();
@@ -653,7 +652,7 @@ function buildItemCardDOM(item) {
     titleInput.style.width = "100%";
     titleInput.style.maxInlineSize = "100%";
     titleInput.value = item.shortTitle;
-    titleInput.placeholder = "문항 요약 제목";
+    titleInput.placeholder = "Item summary title";
     titleInput.addEventListener("input", () => {
       item.shortTitle = titleInput.value;
       titleEl.textContent = item.shortTitle;
@@ -664,7 +663,7 @@ function buildItemCardDOM(item) {
 
     const { wrapper: qEditor } = createRichEditorWidget({
       initialHtml: item.questionHtml,
-      placeholder: "1. 문제 항목 내용을 입력하세요...",
+      placeholder: "Enter the question or prompt for Section 1...",
       onChange: (html) => {
         item.questionHtml = html;
         saveStateLocally();
@@ -679,21 +678,21 @@ function buildItemCardDOM(item) {
   }
 
   // -------------------------------------------------------------------------
-  // 2-1. 기존 대답 인풋 (Existing / Pre-filled Answer Block)
+  // 2-1. Existing / Pre-filled Answer Block
   // -------------------------------------------------------------------------
   const exDetails = document.createElement("details");
   exDetails.className = "block-existing";
   exDetails.open = false;
 
   const exSummary = document.createElement("summary");
-  exSummary.innerHTML = `<span>2-1. 기존 대답 인풋 (CLT / 행정부서 사전 작성 본문 — 클릭하여 펼치기/편집)</span><span style="font-size:0.76rem;color:var(--text-muted);">펼치기/접기 ▾</span>`;
+  exSummary.innerHTML = `<span>2-1. Existing / Pre-filled Answer Input (Pre-populated by CLT / Administration — click to expand or edit)</span><span style="font-size:0.76rem;color:var(--text-muted);">Expand / Collapse ▾</span>`;
 
   const exContent = document.createElement("div");
   exContent.className = "block-existing-content";
 
   const { wrapper: exEditor } = createRichEditorWidget({
     initialHtml: item.existingAnswerHtml,
-    placeholder: "2-1. 기존 대답(Pre-filled answer) 텍스트나 표를 입력하세요...",
+    placeholder: "2-1. Enter or edit the existing pre-filled answer text or tables...",
     onChange: (html) => {
       item.existingAnswerHtml = html;
       saveStateLocally();
@@ -713,12 +712,12 @@ function buildItemCardDOM(item) {
 
   const gzTitle = document.createElement("h3");
   gzTitle.className = "gray-zone-title";
-  gzTitle.innerHTML = `<span class="gray-zone-pill">2-2. GRAY ZONE</span> <span>패컬티 커미티 핵심 작업 공간 (Dissect &amp; Assign Workspace)</span>`;
+  gzTitle.innerHTML = `<span class="gray-zone-pill">2-2. GRAY ZONE</span> <span>Faculty Committee Core Workspace (Dissect &amp; Assign)</span>`;
 
   const addSubBtn = document.createElement("button");
   addSubBtn.type = "button";
   addSubBtn.className = "btn btn-primary no-print";
-  addSubBtn.textContent = "+ 세부 항목 쪼개기 (Add Dissected Sub-item)";
+  addSubBtn.textContent = "+ Add Dissected Sub-item";
   addSubBtn.addEventListener("click", () => {
     item.grayZoneSubItems.push({
       id: `gz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -747,7 +746,7 @@ function buildItemCardDOM(item) {
   gzBlock.appendChild(dissectList);
 
   // -------------------------------------------------------------------------
-  // 2-3. 데이터 및 추가 문서 첨부 (Supporting Data & OneDrive Attachments)
+  // 2-3. Supporting Data & Attachments (OneDrive Links + Local File Upload)
   // -------------------------------------------------------------------------
   const attBlock = buildAttachmentsBlockDOM(item);
 
@@ -770,19 +769,19 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const indexTag = document.createElement("span");
   indexTag.className = "subitem-index-tag";
-  indexTag.textContent = `Dissect #${idx + 1} (${item.code}-${idx + 1})`;
+  indexTag.textContent = `Dissected Part #${idx + 1} (${item.code}.${idx + 1})`;
 
   const delBtn = document.createElement("button");
   delBtn.type = "button";
   delBtn.className = "btn btn-sm btn-danger no-print";
-  delBtn.textContent = "이 세부 항목 삭제";
+  delBtn.textContent = "Remove Sub-item";
   delBtn.disabled = item.grayZoneSubItems.length <= 1;
-  delBtn.title = item.grayZoneSubItems.length <= 1 ? "최소 1개의 Gray Zone 블록이 필요합니다" : "이 세부 항목을 삭제합니다";
+  delBtn.title = item.grayZoneSubItems.length <= 1 ? "At least one Gray Zone sub-item is required" : "Remove this dissected sub-item";
   delBtn.addEventListener("click", () => {
     if (item.grayZoneSubItems.length <= 1) return;
     item.grayZoneSubItems = item.grayZoneSubItems.filter((s) => s.id !== sub.id);
     if (subCountBadge) {
-      subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length}개 항목`;
+      subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length} sub-item(s)`;
     }
     saveStateLocally();
     renderItemsList();
@@ -792,7 +791,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const promptTextarea = document.createElement("textarea");
   promptTextarea.className = "auto-fit-textarea";
-  promptTextarea.placeholder = "쪼개진 Gray Zone 질문/지시문 또는 해결해야 할 세부 쟁점을 입력하세요...";
+  promptTextarea.placeholder = "Enter the dissected Gray Zone prompt, instruction, or specific committee question to address...";
   promptTextarea.value = sub.prompt || "";
   promptTextarea.addEventListener("input", () => {
     sub.prompt = promptTextarea.value;
@@ -801,7 +800,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   subTop.append(subTopBar, promptTextarea);
 
-  // 2-2-1. 누가 대답할 수 있는지 (Primary Assignee Free-text Input)
+  // 2-2-1. Primary Assignee (Who Can Answer — Free-text Input)
   const assigneeBar = document.createElement("div");
   assigneeBar.className = "assignee-bar";
 
@@ -809,13 +808,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   assigneeLabel.className = "assignee-label";
   const assigneeInputId = `primary-assignee-${sub.id}`;
   assigneeLabel.htmlFor = assigneeInputId;
-  assigneeLabel.textContent = "2-2-1. 누가 대답할 수 있는지 (담당자 지정):";
+  assigneeLabel.textContent = "2-2-1. Who Can Answer (Primary Responder / Assignee):";
 
   const assigneeInput = document.createElement("input");
   assigneeInput.id = assigneeInputId;
   assigneeInput.type = "text";
   assigneeInput.className = "auto-fit-input";
-  assigneeInput.placeholder = "예: Program Chair (Wrik/Philippe), Committee, Kat, Haru, Luke, Gustavo, CEAD 등 자유 입력";
+  assigneeInput.placeholder = "e.g., Program Chair (Wrik/Philippe), Committee, Kat, Haru, Luke, Gustavo, CEAD, Registrar...";
   assigneeInput.value = sub.primaryAssignee || "";
   assigneeInput.addEventListener("input", () => {
     sub.primaryAssignee = assigneeInput.value;
@@ -837,13 +836,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const draftTitle = document.createElement("span");
   draftTitle.className = "response-box-title";
-  draftTitle.textContent = "2-2-1-1. Draft 대답 (초안 · 논의 메모 · 데이터 요청 사항)";
+  draftTitle.textContent = "2-2-1-1. Draft Response (Working Draft, Notes & Missing Data Flags)";
 
   draftHeader.appendChild(draftTitle);
 
   const { wrapper: draftEditorWidget, editor: draftEditorEl } = createRichEditorWidget({
     initialHtml: sub.draftHtml,
-    placeholder: "2-2-1-1. Draft 대답을 작성하세요 (텍스트 및 표 삽입 가능)...",
+    placeholder: "2-2-1-1. Enter the draft response here (supports formatted text and tables)...",
     onChange: (html) => {
       sub.draftHtml = html;
       saveStateLocally();
@@ -861,17 +860,17 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const finalTitle = document.createElement("span");
   finalTitle.className = "response-box-title";
-  finalTitle.textContent = "2-2-1-2. Finalized 대답 (커미티 최종 확정 문안)";
+  finalTitle.textContent = "2-2-1-2. Finalized Response (Approved Committee Response)";
 
   const copyFromDraftBtn = document.createElement("button");
   copyFromDraftBtn.type = "button";
   copyFromDraftBtn.className = "btn btn-sm no-print";
-  copyFromDraftBtn.textContent = "Draft ➔ Final로 복사";
-  copyFromDraftBtn.title = "Draft에 작성된 텍스트와 표를 Finalized 칸으로 복사합니다";
+  copyFromDraftBtn.textContent = "Copy Draft ➔ Final";
+  copyFromDraftBtn.title = "Copy text and tables from Draft into Finalized Response";
 
   const { wrapper: finalEditorWidget, editor: finalEditorEl } = createRichEditorWidget({
     initialHtml: sub.finalHtml,
-    placeholder: "2-2-1-2. 최종 확정된(Finalized) 대답을 입력하세요 (텍스트 및 표 삽입 가능)...",
+    placeholder: "2-2-1-2. Enter the finalized response here (supports formatted text and tables)...",
     onChange: (html) => {
       sub.finalHtml = html;
       saveStateLocally();
@@ -890,7 +889,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   responsesGrid.append(draftBox, finalBox);
 
-  // 2-2-2. 누구 다른 사람이 대답을 하고 싶은지 (Optional Responder & Response)
+  // 2-2-2. Optional Responder (Anyone Else Who Wants to Answer)
   const optBox = document.createElement("div");
   optBox.className = "response-box optional-box";
 
@@ -907,13 +906,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   const optInputId = `opt-assignee-${sub.id}`;
   optTitle.htmlFor = optInputId;
   optTitle.className = "response-box-title";
-  optTitle.textContent = "2-2-2. 추가/옵셔널 대답자 (Optional — 다른 사람이 추가로 대답하고 싶은 경우):";
+  optTitle.textContent = "2-2-2. Optional Responder (Who else wants to contribute / comment):";
 
   const optInput = document.createElement("input");
   optInput.id = optInputId;
   optInput.type = "text";
   optInput.className = "auto-fit-input";
-  optInput.placeholder = "옵셔널 대답 희망자 이름/역할 입력 (자유 입력)";
+  optInput.placeholder = "Enter optional contributor name(s) or role (free text)";
   optInput.value = sub.optionalAssignee || "";
   optInput.addEventListener("input", () => {
     sub.optionalAssignee = optInput.value;
@@ -925,7 +924,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const { wrapper: optEditorWidget } = createRichEditorWidget({
     initialHtml: sub.optionalHtml,
-    placeholder: "2-2-2. 추가/옵셔널 대답 또는 소수의견·보충 코멘트·표를 입력하세요...",
+    placeholder: "2-2-2. Enter optional response, additional perspective, or supporting tables...",
     onChange: (html) => {
       sub.optionalHtml = html;
       saveStateLocally();
@@ -952,7 +951,7 @@ function buildAttachmentsBlockDOM(item) {
   const label = document.createElement("span");
   label.className = "block-label";
   label.style.color = "var(--text-secondary)";
-  label.textContent = "2-3. 근거 데이터 및 추가 문서 첨부 (OneDrive 공유 링크 / 파일 첨부)";
+  label.textContent = "2-3. Supporting Data & Attached Documents (OneDrive Shared Links / File Attachments)";
 
   header.appendChild(label);
   block.appendChild(header);
@@ -966,7 +965,7 @@ function buildAttachmentsBlockDOM(item) {
       const emptyNote = document.createElement("span");
       emptyNote.style.fontSize = "0.8rem";
       emptyNote.style.color = "var(--text-muted)";
-      emptyNote.textContent = "첨부된 문서나 데이터 링크가 없습니다.";
+      emptyNote.textContent = "No supporting documents or data links attached yet.";
       list.appendChild(emptyNote);
       return;
     }
@@ -982,7 +981,7 @@ function buildAttachmentsBlockDOM(item) {
       link.href = att.url || "#";
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = att.title || "첨부 문서";
+      link.textContent = att.title || "Attached Document";
       if (att.type === "file" && att.fileName) {
         link.download = att.fileName;
       }
@@ -992,7 +991,7 @@ function buildAttachmentsBlockDOM(item) {
       delBtn.className = "btn btn-sm btn-danger no-print";
       delBtn.style.padding = "0.05rem 0.35rem";
       delBtn.textContent = "✕";
-      delBtn.title = "첨부 삭제";
+      delBtn.title = "Remove attachment";
       delBtn.addEventListener("click", () => {
         item.attachments = item.attachments.filter((a) => a.id !== att.id);
         saveStateLocally();
@@ -1013,17 +1012,17 @@ function buildAttachmentsBlockDOM(item) {
   const titleInput = document.createElement("input");
   titleInput.type = "text";
   titleInput.className = "auto-fit-input";
-  titleInput.placeholder = "문서/데이터 제목 (예: Registrar Sequencing Chart)";
+  titleInput.placeholder = "Document / Data Title (e.g., Registrar Sequencing Chart)";
 
   const urlInput = document.createElement("input");
   urlInput.type = "url";
   urlInput.className = "auto-fit-input";
-  urlInput.placeholder = "OneDrive 공유 링크 (https://...)";
+  urlInput.placeholder = "OneDrive Shared Link (https://...)";
 
   const addLinkBtn = document.createElement("button");
   addLinkBtn.type = "button";
   addLinkBtn.className = "btn btn-sm btn-secondary";
-  addLinkBtn.textContent = "+ 링크 추가";
+  addLinkBtn.textContent = "+ Add Link";
   addLinkBtn.addEventListener("click", () => {
     const title = titleInput.value.trim() || urlInput.value.trim();
     const url = urlInput.value.trim();
@@ -1040,7 +1039,7 @@ function buildAttachmentsBlockDOM(item) {
     renderChips();
   });
 
-  // File attach input (converts CSV/TSV directly into a table or embeds file)
+  // File attach input
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   fileInput.style.display = "none";
@@ -1049,14 +1048,14 @@ function buildAttachmentsBlockDOM(item) {
   const addFileBtn = document.createElement("button");
   addFileBtn.type = "button";
   addFileBtn.className = "btn btn-sm btn-secondary";
-  addFileBtn.textContent = "📎 파일 직접 첨부 (2MB 이하)";
+  addFileBtn.textContent = "📎 Attach File (≤ 2MB)";
   addFileBtn.addEventListener("click", () => fileInput.click());
 
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      updateSyncStatusUI("warning", "2MB 초과 파일은 OneDrive 공유 폴더에 올린 뒤 링크로 연결해 주세요.");
+      updateSyncStatusUI("warning", "For files larger than 2MB, please upload to your shared OneDrive folder and paste the link.");
       return;
     }
     const reader = new FileReader();
@@ -1081,7 +1080,7 @@ function buildAttachmentsBlockDOM(item) {
 }
 
 // ============================================================================
-// Recommendation A: GitHub Repository API Cloud Sync (Pull & Push)
+// GitHub Repository API Cloud Sync (Pull & Push)
 // ============================================================================
 function loadGitHubConfig() {
   try {
@@ -1121,12 +1120,12 @@ function setupAutoSyncTimer(cfg) {
 async function pullFromGitHub(silent = false) {
   const cfg = loadGitHubConfig();
   if (!cfg.owner || !cfg.repo || !cfg.token) {
-    if (!silent) updateSyncStatusUI("warning", "GitHub 설정을 먼저 입력해 주세요.");
+    if (!silent) updateSyncStatusUI("warning", "Please configure GitHub Sync Settings first.");
     return;
   }
 
   try {
-    if (!silent) updateSyncStatusUI("ok", "GitHub에서 최신 데이터 불러오는 중...");
+    if (!silent) updateSyncStatusUI("ok", "Pulling latest workspace from GitHub...");
     const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${cfg.path}?ref=${encodeURIComponent(cfg.branch || "main")}`;
     const res = await fetch(apiUrl, {
       headers: {
@@ -1137,7 +1136,7 @@ async function pullFromGitHub(silent = false) {
     });
 
     if (res.status === 404) {
-      if (!silent) updateSyncStatusUI("warning", "GitHub에 아직 저장된 데이터 파일이 없습니다. 먼저 Push(저장)를 눌러주세요.");
+      if (!silent) updateSyncStatusUI("warning", "No workspace file found on GitHub yet. Click 'Save to GitHub (Push)' first.");
       return;
     }
     if (!res.ok) {
@@ -1152,7 +1151,7 @@ async function pullFromGitHub(silent = false) {
     let incomingState = parsed;
     if (parsed.encrypted) {
       if (!cfg.passcode) {
-        updateSyncStatusUI("warning", "암호화된 데이터입니다. GitHub 설정에서 위원회 암호(Passcode)를 입력해 주세요.");
+        updateSyncStatusUI("warning", "Workspace is encrypted. Please enter the Committee Encryption Passcode in GitHub Sync Setup.");
         return;
       }
       incomingState = await decryptWorkspacePayload(parsed, cfg.passcode);
@@ -1163,11 +1162,11 @@ async function pullFromGitHub(silent = false) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
       renderMetadataFields();
       renderItemsList();
-      updateSyncStatusUI("ok", `GitHub 동기화 완료 (Pull · ${formatShortTime(new Date().toISOString())})`);
+      updateSyncStatusUI("ok", `Synced from GitHub (Pull · ${formatShortTime(new Date().toISOString())})`);
     }
   } catch (err) {
     console.error("GitHub pull error:", err);
-    if (!silent) updateSyncStatusUI("error", `GitHub 불러오기 실패: ${err.message}`);
+    if (!silent) updateSyncStatusUI("error", `GitHub Pull failed: ${err.message}`);
   }
 }
 
@@ -1180,7 +1179,7 @@ async function pushToGitHub() {
   }
 
   try {
-    updateSyncStatusUI("ok", "GitHub 저장소에 업로드(Push) 중...");
+    updateSyncStatusUI("ok", "Pushing workspace to GitHub repository...");
     const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${cfg.path}`;
 
     // 1. Check current SHA if file exists
@@ -1229,11 +1228,11 @@ async function pushToGitHub() {
 
     updateSyncStatusUI(
       "ok",
-      `GitHub 저장 완료 (${cfg.passcode ? "AES-256 암호화됨" : "일반 JSON"} · ${formatShortTime(new Date().toISOString())})`
+      `Saved to GitHub (${cfg.passcode ? "AES-256 Encrypted" : "Standard JSON"} · ${formatShortTime(new Date().toISOString())})`
     );
   } catch (err) {
     console.error("GitHub push error:", err);
-    updateSyncStatusUI("error", `GitHub 저장 실패: ${err.message}`);
+    updateSyncStatusUI("error", `GitHub Push failed: ${err.message}`);
   }
 }
 
@@ -1260,18 +1259,18 @@ function importWorkspaceJSON(file) {
       let loaded = parsed;
       if (parsed.encrypted) {
         const cfg = loadGitHubConfig();
-        const pass = cfg.passcode || window.prompt("암호화된 백업 파일입니다. 위원회 암호(Passcode)를 입력하세요:");
+        const pass = cfg.passcode || window.prompt("This backup file is encrypted. Please enter the Committee Encryption Passcode:");
         if (!pass) return;
         loaded = await decryptWorkspacePayload(parsed, pass);
       }
       if (loaded && Array.isArray(loaded.items)) {
         appState = loaded;
-        saveStateLocally("파일에서 데이터 복원 완료");
+        saveStateLocally("Restored workspace from JSON file");
         renderMetadataFields();
         renderItemsList();
       }
     } catch (err) {
-      updateSyncStatusUI("error", `파일 불러오기 오류: ${err.message}`);
+      updateSyncStatusUI("error", `Failed to import file: ${err.message}`);
     }
   };
   reader.readAsText(file);
@@ -1279,12 +1278,12 @@ function importWorkspaceJSON(file) {
 
 function stripQuestionsToBlankTemplate() {
   for (const item of appState.items) {
-    item.questionHtml = `<p><strong>${item.code}.</strong> [문항 원문을 여기에 직접 입력하거나 JSON 백업 파일에서 불러오세요]</p>`;
+    item.questionHtml = `<p><strong>${item.code}.</strong> [Enter the question prompt here or import from a saved JSON workspace file]</p>`;
     item.existingAnswerHtml = "";
     item.grayZoneSubItems = [
       {
         id: `gz-blank-${item.id}`,
-        prompt: "[Gray Zone 쟁점 항목을 입력하세요]",
+        prompt: "[Enter the Gray Zone issue or prompt to address]",
         primaryAssignee: "",
         draftHtml: "",
         finalHtml: "",
@@ -1293,13 +1292,12 @@ function stripQuestionsToBlankTemplate() {
       }
     ];
   }
-  saveStateLocally("빈 문항 템플릿 모드로 전환됨");
+  saveStateLocally("Switched to Blank Template Mode");
   renderItemsList();
 }
 
 function restorePreExtractedBriefTemplate() {
   const defaults = cloneDefaultState();
-  // Preserve committee's drafted/finalized responses if matching sub-item IDs exist
   appState.items = defaults.items.map((defItem) => {
     const currentItem = appState.items.find((i) => i.id === defItem.id);
     if (!currentItem) return defItem;
@@ -1321,7 +1319,7 @@ function restorePreExtractedBriefTemplate() {
       })
     };
   });
-  saveStateLocally("IQAP Brief 원문 템플릿 복원됨");
+  saveStateLocally("Restored EXAN IQAP Brief Template");
   renderItemsList();
 }
 
@@ -1457,7 +1455,7 @@ function initApp() {
     secDialog?.close();
   });
 
-  // GitHub Sync Dialog (Recommendation A)
+  // GitHub Sync Dialog
   const ghDialog = document.getElementById("github-sync-dialog");
   const populateGhForm = () => {
     const cfg = loadGitHubConfig();
@@ -1489,7 +1487,7 @@ function initApp() {
     const cfg = readGhForm();
     saveGitHubConfig(cfg);
     ghDialog?.close();
-    updateSyncStatusUI("ok", "GitHub 연동 설정이 저장되었습니다.");
+    updateSyncStatusUI("ok", "GitHub sync settings saved.");
   });
 
   document.getElementById("btn-gh-pull-now")?.addEventListener("click", async () => {

@@ -19,11 +19,11 @@ export const INITIAL_BRIEF_METADATA = {
 };
 
 export const STATUS_OPTIONS = [
-  { value: "not_started", label: "미착수 (Not Started)", badgeClass: "status-not-started" },
-  { value: "needs_data", label: "데이터 부족 / 요청 필요 (Needs Data)", badgeClass: "status-needs-data" },
-  { value: "delegate_chair", label: "Chair / 타부서 위임 (Delegated)", badgeClass: "status-delegate" },
-  { value: "drafting", label: "Draft 작성 중 (In Progress)", badgeClass: "status-drafting" },
-  { value: "finalized", label: "Final 완료 (Finalized)", badgeClass: "status-finalized" }
+  { value: "not_started", label: "Not Started", badgeClass: "status-not-started" },
+  { value: "needs_data", label: "Needs Data / Info Requested", badgeClass: "status-needs-data" },
+  { value: "delegate_chair", label: "Delegate to Chair / Other Unit", badgeClass: "status-delegate" },
+  { value: "drafting", label: "Draft in Progress", badgeClass: "status-drafting" },
+  { value: "finalized", label: "Finalized", badgeClass: "status-finalized" }
 ];
 
 export const INITIAL_ITEMS = [
