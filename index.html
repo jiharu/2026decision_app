@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>2026 IQAP Major Modifications — Committee Decision Support App</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <!-- Sticky Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-group">
+        <div class="ocad-badge">OCAD U<br>EXAN</div>
+        <div>
+          <h1 class="brand-title">IQAP Major Modifications — Committee Decision Workspace</h1>
+          <p class="brand-subtitle">Part I (1–3) · Part II (4–11) · Appendixes (A, B) | Gray Zone Dissection &amp; Role Assignment</p>
+        </div>
+      </div>
+
+      <div class="header-actions no-print">
+        <div class="sync-pill" role="status" aria-live="polite">
+          <span id="sync-dot" class="sync-dot"></span>
+          <span id="sync-status-text">로컬 자동 저장 준비됨</span>
+        </div>
+
+        <button type="button" id="btn-quick-pull" class="btn btn-sm" title="GitHub 저장소에서 최신 데이터 불러오기">
+          ⬇️ Pull
+        </button>
+        <button type="button" id="btn-quick-push" class="btn btn-sm btn-primary" title="현재 작성 내용을 GitHub 저장소에 저장(동기화)">
+          ⬆️ GitHub 저장 (Push)
+        </button>
+        <button type="button" id="btn-open-github-sync" class="btn btn-sm">
+          ⚙️ GitHub 연동 설정
+        </button>
+        <button type="button" id="btn-open-security" class="btn btn-sm">
+          🔒 보안 안내 &amp; 원문 모드
+        </button>
+        <button type="button" id="btn-export-json" class="btn btn-sm" title="현재 전체 데이터를 JSON 파일로 내 컴퓨터/OneDrive 폴더에 저장">
+          💾 JSON 백업
+        </button>
+        <button type="button" id="btn-import-json" class="btn btn-sm" title="저장된 JSON 데이터 파일 불러오기">
+          📂 JSON 열기
+        </button>
+        <input type="file" id="input-import-json" accept=".json" style="display:none">
+        <button type="button" id="btn-print-report" class="btn btn-sm">
+          🖨️ 인쇄 / PDF
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="main-container">
+    <!-- Dashboard & Status Filters -->
+    <section class="dashboard-panel" aria-label="문서 기본 정보 및 상태 필터 대시보드">
+      <div class="dashboard-top">
+        <div class="meta-strip">
+          <div class="meta-field">
+            <label for="meta-program-name">Program:</label>
+            <input type="text" id="meta-program-name" class="auto-fit-input" placeholder="Experimental Animation">
+          </div>
+          <div class="meta-field">
+            <label for="meta-prepared-by">Prepared by:</label>
+            <input type="text" id="meta-prepared-by" class="auto-fit-input" placeholder="EXAN Curriculum Committee">
+          </div>
+          <div class="meta-field">
+            <label for="meta-impl-date">Implementation:</label>
+            <input type="text" id="meta-impl-date" class="auto-fit-input" placeholder="Fall 2028 / 2029">
+          </div>
+          <div class="meta-field">
+            <label for="meta-onedrive-url">OneDrive 공유 폴더:</label>
+            <input type="url" id="meta-onedrive-url" class="auto-fit-input" placeholder="Share with specific members 폴더 링크 붙여넣기">
+            <button type="button" id="btn-open-onedrive" class="btn btn-sm no-print" disabled>폴더 열기 ↗</button>
+          </div>
+        </div>
+
+        <div class="no-print" style="display:flex;gap:0.4rem;">
+          <button type="button" id="btn-expand-all" class="btn btn-sm">모두 펼치기</button>
+          <button type="button" id="btn-collapse-all" class="btn btn-sm">모두 접기</button>
+        </div>
+      </div>
+
+      <!-- Section Tabs & Status Filter Row -->
+      <div class="filter-row no-print">
+        <div class="section-tabs" role="tablist" aria-label="섹션별 보기">
+          <button type="button" class="tab-btn active" data-section-tab="all">전체 (13문항)</button>
+          <button type="button" class="tab-btn" data-section-tab="part1">Part I · Part B (1~3)</button>
+          <button type="button" class="tab-btn" data-section-tab="part2">Part II · Part C (4~11)</button>
+          <button type="button" class="tab-btn" data-section-tab="appendixes">Appendixes (A, B)</button>
+        </div>
+
+        <div class="status-filters" aria-label="진행 상태별 필터">
+          <button type="button" class="status-chip active" data-status-filter="all">
+            전체 <span class="chip-count" data-status-count="all">13</span>
+          </button>
+          <button type="button" class="status-chip" data-status-filter="needs_data">
+            🚨 데이터 부족/요청 필요 <span class="chip-count" data-status-count="needs_data">0</span>
+          </button>
+          <button type="button" class="status-chip" data-status-filter="delegate_chair">
+            📌 Chair/타부서 위임 <span class="chip-count" data-status-count="delegate_chair">0</span>
+          </button>
+          <button type="button" class="status-chip" data-status-filter="drafting">
+            ✍️ Draft 작성 중 <span class="chip-count" data-status-count="drafting">0</span>
+          </button>
+          <button type="button" class="status-chip" data-status-filter="finalized">
+            ✅ Final 완료 <span class="chip-count" data-status-count="finalized">0</span>
+          </button>
+          <button type="button" class="status-chip" data-status-filter="not_started">
+            ⏳ 미착수 <span class="chip-count" data-status-count="not_started">0</span>
+          </button>
+        </div>
+
+        <div class="search-box">
+          <input type="search" id="search-input" class="search-input" placeholder="문항·담당자·키워드 검색..." aria-label="문항 및 답변 검색">
+        </div>
+      </div>
+
+      <!-- Quick Jump Bar -->
+      <nav id="quick-jump-bar" class="quick-jump-bar no-print" aria-label="문항 빠른 이동"></nav>
+    </section>
+
+    <!-- 13 Items List -->
+    <div id="items-list" class="items-list"></div>
+  </main>
+
+  <!-- Dialog 1: GitHub Repository Sync Configuration (Recommendation A) -->
+  <dialog id="github-sync-dialog" closedby="any" aria-labelledby="gh-dialog-title">
+    <div class="dialog-header">
+      <h2 id="gh-dialog-title">☁️ GitHub 단독 통합 동기화 설정 (추천 A)</h2>
+      <form method="dialog">
+        <button type="submit" class="btn btn-sm" aria-label="닫기">✕</button>
+      </form>
+    </div>
+    <div class="dialog-body">
+      <div class="security-callout">
+        <strong>작동 방식:</strong> 별도의 외부 데이터베이스 없이 <strong>GitHub 저장소 자체를 실시간 데이터 저장소</strong>로 사용합니다. 아래에 위원회 전용 암호(Passcode)를 함께 입력하면 GitHub에 저장되는 JSON 데이터 파일이 브라우저에서 <strong>AES-256-GCM으로 암호화</strong>되어 업로드됩니다.
+      </div>
+
+      <div class="form-group">
+        <label for="gh-owner">GitHub 계정/조직 이름 (Owner)</label>
+        <input type="text" id="gh-owner" placeholder="예: jiharu" autofocus>
+      </div>
+      <div class="form-group">
+        <label for="gh-repo">저장소 이름 (Repository Name)</label>
+        <input type="text" id="gh-repo" placeholder="예: 2026decision_app">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:0.75rem;">
+        <div class="form-group">
+          <label for="gh-branch">Branch</label>
+          <input type="text" id="gh-branch" value="main">
+        </div>
+        <div class="form-group">
+          <label for="gh-path">동기화 데이터 파일 경로</label>
+          <input type="text" id="gh-path" value="data/committee-workspace.json">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="gh-token">GitHub Access Key (Fine-grained Personal Access Token — Contents Read/Write 권한)</label>
+        <input type="password" id="gh-token" placeholder="github_pat_...">
+      </div>
+      <div class="form-group">
+        <label for="gh-passcode">위원회 데이터 암호화 키 (선택 — 입력 시 AES-256-GCM 암호화 저장)</label>
+        <input type="password" id="gh-passcode" placeholder="커미티 멤버들과 공유한 비밀번호 (선택 사항)">
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <input type="checkbox" id="gh-autosync">
+        <label for="gh-autosync" style="font-size:0.84rem;font-weight:600;">30초마다 GitHub에서 최신 변경사항 자동 확인 (Auto-Pull)</label>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" id="btn-gh-pull-now" class="btn">⬇️ 지금 GitHub에서 불러오기 (Pull)</button>
+      <button type="button" id="btn-gh-push-now" class="btn btn-primary">⬆️ 지금 GitHub에 저장하기 (Push)</button>
+      <button type="button" id="btn-save-gh-config" class="btn btn-secondary">설정만 저장</button>
+    </div>
+  </dialog>
+
+  <!-- Dialog 2: Security Guide & Question Template Mode -->
+  <dialog id="security-guide-dialog" closedby="any" aria-labelledby="sec-dialog-title">
+    <div class="dialog-header">
+      <h2 id="sec-dialog-title">🔒 보안 안내 (위원회 설명 가이드) 및 문항 원문 모드</h2>
+      <form method="dialog">
+        <button type="submit" class="btn btn-sm" aria-label="닫기">✕</button>
+      </form>
+    </div>
+    <div class="dialog-body">
+      <div class="security-callout">
+        <strong>핵심 요약:</strong> 현재 <code>resource/EXAN Coop Major Mod Brief .pdf</code> 원본 파일은 <code>.gitignore</code>에 등록되어 <strong>GitHub에 절대 업로드되지 않도록 차단</strong>되어 있으며, 앱에는 문항(1~11, A~B), CLT 기존 대답(2-1), Gray Zone 지시문(2-2)이 바로 작업하실 수 있게 세팅되어 있습니다.
+      </div>
+
+      <h3 style="margin:0.2rem 0;font-size:0.95rem;">💬 커미티나 외부에서 "문항이 웹앱에 포함되면 보안 문제가 없나요?"라고 물을 때 답변 가이드</h3>
+      <ol style="margin:0;padding-left:1.2rem;font-size:0.85rem;display:flex;flex-direction:column;gap:0.45rem;">
+        <li>
+          <strong>1. 문항 질문 자체는 공개된 대학 표준 양식(Public Policy Template)입니다:</strong><br>
+          Part B(1~3), Part C(4~11), Appendix(A~B)의 질문 문항은 OCAD U Senate IQAP Policy(2023년 6월 개정 양식)의 표준 템플릿 문항이며, 학생 개인정보(PII)나 인사·성적 같은 기밀 데이터가 전혀 포함되어 있지 않습니다.
+        </li>
+        <li>
+          <strong>2. 원본 문서 및 첨부 자료는 OCAD U 공식 OneDrive 내부에만 보관됩니다:</strong><br>
+          원본 PDF, Registrar 시퀀싱 차트, 예산 추정표 등 실제 문서는 GitHub에 올리지 않고 <strong>OCAD U Microsoft 365 OneDrive (<code>Share with specific members</code>)</strong> 폴더 안에만 보관하며, 앱에서는 링크로만 연결합니다(권한 없는 외부인은 열람 불가).
+        </li>
+        <li>
+          <strong>3. 위원회의 실제 작성 내용(Draft/Final)은 AES-256 암호화 및 비공개 토큰으로 보호됩니다:</strong><br>
+          위원회가 작성하는 내부 의견(Draft/Final)은 브라우저 내장 표준 암호화(WebCrypto <code>AES-256-GCM</code>) 및 비공개 GitHub 토큰을 통해서만 동기화할 수 있으며, 검색 엔진 노출 차단(<code>noindex, nofollow</code>)이 적용되어 있습니다.
+        </li>
+      </ol>
+
+      <div style="background:var(--bg-subtle);padding:0.75rem;border-radius:var(--radius-sm);font-size:0.82rem;">
+        <strong>🇺🇸 English Response for Committee Colleagues:</strong><br>
+        <em>"No confidential student, HR, or institutional files are hosted publicly. The numbered prompts (1–11, Appendices A–B) are standard OCAD U Senate IQAP template headers. All sensitive supporting documents (PDF briefs, Registrar sequencing charts, spreadsheets) remain strictly inside our institutional OCAD U OneDrive ('Share with specific members'). Furthermore, our committee's working drafts can be synced using client-side AES-256 encryption or exported directly as a JSON file into our shared OneDrive folder."</em>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--border-color);width:100%;">
+
+      <h3 style="margin:0;font-size:0.95rem;">⚙️ 문항 원문 포함 여부 전환 (원하실 때 언제든 변경 가능)</h3>
+      <p style="margin:0;font-size:0.83rem;color:var(--text-secondary);">
+        만약 앱 화면에서 기본 문항 원문과 CLT 기존 답변(2-1)도 모두 비워두고, 회의 시간에 JSON 파일로만 불러오거나 직접 입력하고 싶으시다면 아래 버튼으로 즉시 전환할 수 있습니다.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+        <button type="button" id="btn-restore-brief-mode" class="btn btn-primary">
+          ✅ IQAP Brief 원문 자동 채움 모드 (현재 기본값 · 권장)
+        </button>
+        <button type="button" id="btn-switch-blank-mode" class="btn btn-secondary">
+          🧹 문항 원문 모두 비우기 (직접 입력 / JSON 불러오기 전용 모드)
+        </button>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <form method="dialog">
+        <button type="submit" class="btn">닫기</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

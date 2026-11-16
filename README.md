@@ -1,87 +1,49 @@
 # 2026 IQAP Major Modifications — Committee Decision Support App
 
 ## 1. 프로젝트 개요 (Overview)
-- **목적**: 패컬티 커미티(Faculty Curriculum Committee)에서 **IQAP Major Modifications** 문서를 짧은 준비 시간과 부족한 데이터 환경 속에서도 체계적으로 분석(Dissect)하고, 역할 분담 및 의사결정을 신속하게 내릴 수 있도록 돕는 의사결정 지원 웹 애플리케이션.
+- **목적**: 패컬티 커미티(EXAN Curriculum Committee)에서 **IQAP Major Modifications (Co-op & Trimesterization Proposal Brief)** 문서를 짧은 준비 시간과 부족한 데이터 환경 속에서도 체계적으로 분석(Dissect)하고, 역할 분담 및 의사결정을 신속하게 내릴 수 있도록 돕는 의사결정 지원 웹 애플리케이션.
 - **배경 및 핵심 과제**:
-  - 준비 시간 부족 및 의사결정에 필요한 근거 데이터 부족 문제를 해결하기 위해, 각 문항의 **기존 답변(Pre-filled)** 과 패컬티가 실제로 채워야 하는 **Gray Zone(핵심 작업 공간)** 을 명확히 분리.
-  - 각 Gray Zone 항목을 세부적으로 쪼개어(Dissect), **누가 대답해야 하는지** 자유롭게 지정하고 **초안(Draft)** 과 **최종안(Finalized)** 을 구분해 작성.
-  - 추가 의견이 있는 사람을 위한 옵셔널 입력란, 표(Table) 및 텍스트 편집, 근거 데이터/첨부 문서 연결 기능 제공.
-  - 문항별 진행 상태(데이터 부족/요청 필요, Draft 작성 중, Chair 위임, Final 완료 등)를 한눈에 파악할 수 있는 **대시보드 및 필터** 제공.
+  - `resource/EXAN Coop Major Mod Brief .pdf`의 **Part I (Part B: 1~3)**, **Part II (Part C: 4~11)**, **Appendixes (A, B)** 총 13개 문항 원문과 CLT 사전 작성 본문(`2-1`), 그리고 대괄호(`[...]`)로 표시된 **Gray Zone 지시문(`2-2`)** 을 모두 추출하여 즉시 작업 가능하도록 구성.
+  - 각 Gray Zone 항목을 세부적으로 쪼개어(`+ 세부 항목 쪼개기`), **누가 대답해야 하는지(`2-2-1`)** 자유 텍스트로 지정하고 **초안(`2-2-1-1 Draft`)** 과 **최종안(`2-2-1-2 Finalized`)** 을 구분해 작성.
+  - 추가 의견이 있는 사람을 위한 옵셔널 입력란(`2-2-2`), 표(Table) 및 텍스트 편집(엑셀·워드 표 복사/붙여넣기 자동 변환 포함), 근거 데이터/첨부 문서 연결 기능(`2-3`) 제공.
+  - 문항별 진행 상태(`미착수`, `데이터 부족/요청 필요`, `Chair/타부서 위임`, `Draft 작성 중`, `Final 완료`)를 한눈에 파악할 수 있는 **대시보드 및 필터** 제공.
 
 ---
 
-## 2. 전체 문항 구조 (Document Sections & Items)
-총 **3개 섹션, 13개 문항**으로 구성됩니다.
+## 2. 아키텍처: 추천 A (GitHub 단독 통합 + OneDrive 연동 + AES-256 암호화)
 
-| 섹션 (Section) | 문항 번호 (Items) | 문항 수 | 비고 |
-| :--- | :--- | :---: | :--- |
-| **Part I (Part B)** | 문항 `1`, `2`, `3` | 3문항 | 초기 개요 및 기본 협의 항목 |
-| **Part II (Part C)** | 문항 `4`, `5`, `6`, `7`, `8`, `9`, `10`, `11` | 8문항 | 세부 프로그램 수정 및 운영 계획 |
-| **Appendixes** | 문항 `A`, `B` | 2문항 | 부록 및 커리큘럼 맵/추가 자료 |
-
----
-
-## 3. 개별 문항 워크스페이스 구조 ( 확정 사양 )
-
-각 문항(`1~11`, `Appendix A~B`)은 다음과 같은 계층 구조를 가집니다:
-
-```text
-[문항 카드 (Item 1 ~ 11, Appendix A ~ B)]
- ├── [상단 상태 배지 & 필터 태그]
- │    └── 상태 선택: 예) 미착수 / 데이터 부족·요청 필요 / Chair 위임 / Draft 작성 중 / Final 완료
- │
- ├── 1. 문제 항목 (Question / Prompt)
- │    └── 문항 제목, 원문 질문, 가이드라인 텍스트 입력/표시 (텍스트 + 테이블 지원)
- │
- └── 2. 답 항목 (Response Section)
-      ├── 2-1. 기존 대답 인풋 (Existing / Pre-filled Answer)
-      │    └── 기존에 채워진 답변 보관/편집 (텍스트 + 테이블 지원)
-      │
-      ├── 2-2. Gray Zone (핵심 패컬티 커미티 작업 공간)
-      │    └── [+ 세부 항목 쪼개기 (Add Dissected Sub-item)] 버튼으로 N개 블록 추가 가능
-      │         │
-      │         ├── [Sub-item #1 (쪼개진 쟁점/질문 제목 또는 설명)]
-      │         │    ├── 2-2-1. 누가 대답할 수 있는지 (자유 텍스트 입력란)
-      │         │    │    ├── 2-2-1-1. Draft 대답 (초안 작성란: 텍스트 + 테이블)
-      │         │    │    └── 2-2-1-2. Finalized 대답 (최종 확정란: 텍스트 + 테이블)
-      │         │    │
-      │         │    └── 2-2-2. 옵셔널 추가 대답자 (자유 텍스트 입력란)
-      │         │         └── 옵셔널 대답/코멘트 작성란 (텍스트 + 테이블)
-      │         │
-      │         └── [Sub-item #2 ...] (필요한 만큼 추가/삭제/순서 변경 가능)
-      │
-      └── 2-3. 데이터 및 추가 문서 첨부 (Attachments & Supporting Data)
-           └── 파일 첨부 및 OneDrive 공유 문서 링크/설명 등록
-```
-
-### 확정된 세부 인터랙션 규칙 (인터뷰 반영)
-1. **Gray Zone 다중 세분화 (`+ 세부 항목 쪼개기`)**:
-   - 한 문항 안에서도 여러 쟁점을 쪼개어(Sub-items) 각 블록마다 독립적으로 `2-2-1 담당자`, `2-2-1-1 Draft`, `2-2-1-2 Finalized`, `2-2-2 옵셔널 대답자`를 작성할 수 있음.
-2. **담당자 입력 방식**:
-   - `2-2-1` 및 `2-2-2`는 프리셋 강제 없이 **자유 텍스트 입력란(Free-text input)** 으로 구성하여 상황에 맞게 누구든 자유롭게 기입 가능.
-3. **텍스트 & 테이블(표) 편집기**:
-   - 모든 대답 입력 칸에서 서식 있는 텍스트 작성 및 **표(Table) 삽입, 행/열 추가·삭제, 엑셀/워드 표 복사·붙여넣기** 지원.
-4. **대시보드 & 상태 필터**:
-   - 상단 요약 바에서 전체 13개 문항의 진행 현황(예: `데이터 부족/요청 필요`, `Chair 위임`, `Draft 작성 중`, `Final 완료`)을 집계하고, 클릭 시 해당 상태의 문항만 필터링.
-5. **백업 파일 입출력 (JSON Export/Import)**:
-   - 언제든 현재까지의 전체 작성 내용을 `.json` 파일로 내 컴퓨터/OneDrive 폴더에 백업하거나 불러올 수 있는 안전장치 기본 탑재.
+1. **웹앱 실행 (GitHub Pages 또는 로컬 실행)**:
+   - 외부 DB(Firebase 등) 가입 없이 **GitHub 저장소 하나**로 웹 호스팅(GitHub Pages)과 데이터 동기화(`data/committee-workspace.json`)를 모두 처리합니다.
+2. **실시간/준실시간 데이터 동기화 (GitHub Contents API)**:
+   - 상단 `⚙️ GitHub 연동 설정`에서 저장소 정보와 Access Token을 입력하면, `⬆️ GitHub 저장 (Push)` 및 `⬇️ Pull` (또는 30초 주기 자동 동기화)로 커미티 멤버 간 데이터를 공유합니다.
+   - 언제든 `💾 JSON 백업` / `📂 JSON 열기` 버튼으로 OneDrive 공유 폴더에 백업 파일을 저장하거나 복원할 수 있습니다.
+3. **OneDrive (`Share with specific members`) 연동**:
+   - 원본 PDF, Registrar 시퀀싱 차트, 예산 자료 등 민감하거나 무거운 파일은 **OCAD U OneDrive 공유 폴더**에 보관하고, 상단 대시보드 및 각 문항 하단 `2-3. 첨부 자료`에 OneDrive 링크를 연결합니다.
 
 ---
 
-## 4. 실시간 동시 편집 웹앱 + GitHub / OneDrive 아키텍처 제안
+## 3. 보안 가이드: "문항이 앱에 포함되어 있으면 보안 문제를 뭐라고 대답해야 할까?"
 
-> **왜 OneDrive 단독으로는 실시간 웹앱 구동이 어려운가?**
-> Microsoft OneDrive는 클라우드 파일 저장소여서, `.html` 파일을 올리고 링크를 공유하면 웹 브라우저에서 앱으로 실행되지 않고 코드 미리보기만 뜨거나 각자 컴퓨터로 다운로드됩니다. 따라서 **"링크 클릭만으로 접속해 실시간 동시 편집"** 을 하려면 **GitHub Pages(웹 호스팅)** 를 결합하는 것이 훨씬 좋습니다.
+커미티 멤버나 대학 행정 측에서 웹앱 사용에 따른 보안 우려를 질문할 경우, 아래 **3가지 핵심 근거**로 명확히 설명하실 수 있습니다 (앱 상단 `🔒 보안 안내 & 원문 모드` 버튼에서도 언제든 확인 가능):
 
-### 추천 아키텍처 비교 (두 가지 옵션)
+### 🇰🇷 한국어 설명 포인트
+1. **문항 질문 자체는 공개된 대학 표준 양식(Public Policy Template)입니다**:
+   - Part B(1~3), Part C(4~11), Appendix(A~B)의 질문은 OCAD U Senate IQAP Policy(2023년 6월 개정 양식)의 표준 템플릿 문항이며, 학생 개인정보(PII)나 인사·성적 같은 기밀 데이터가 전혀 포함되어 있지 않습니다.
+2. **원본 PDF 및 민감한 첨부 문서는 GitHub에 올라가지 않고 OCAD U OneDrive에만 보관됩니다**:
+   - `resource/` 폴더는 `.gitignore`로 차단되어 원본 PDF가 외부에 업로드되지 않습니다.
+   - 실제 시퀀싱 차트, 내부 데이터, 첨부 문서들은 **OCAD U 공식 OneDrive (`Share with specific members`)** 내부에만 두어 OCAD U 계정 권한이 있는 커미티 멤버만 열람할 수 있습니다.
+3. **위원회의 내부 작성 의견(Draft/Final)은 AES-256 암호화 및 비공개 키로 보호됩니다**:
+   - GitHub 동기화 시 위원회 암호(Passcode)를 설정하면 브라우저 내장 표준 암호화(WebCrypto `AES-256-GCM`)로 암호화되어 저장되며, 검색 엔진 크롤링 방지(`noindex, nofollow, noarchive`)가 적용되어 있습니다.
+   - 또한 원하실 경우 앱 내 **`🧹 문항 원문 모두 비우기`** 버튼을 눌러 기본 문항까지 모두 비운 뒤, 회의 시에만 OneDrive의 JSON 파일을 불러와 사용할 수도 있습니다.
 
-#### 옵션 1. GitHub Pages (앱 화면) + Firebase / Supabase (무료 실시간 DB) + OneDrive (첨부 문서함) **[실시간 동시성 최우선 시 추천]**
-- **웹앱 접속**: GitHub Pages 링크(`https://<아이디>.github.io/2026decision_app/`)를 커미티 멤버들에게 공유.
-- **보안(접근 제한)**: 앱 접속 시 커미티 전용 **Access Password(비밀번호)** 를 입력해야만 데이터가 열리도록 설정.
-- **실시간 동기화**: 누군가 항목을 쪼개거나 Draft/표에 타이핑하면 **1초 이내에 다른 멤버 화면에 실시간 반영**.
-- **OneDrive의 역할**: 무겁거나 대외비인 PDF, 엑셀, 시퀀싱 차트 원본 파일들은 OCAD U OneDrive (`Share with specific members`) 폴더에 모아두고, 앱의 첨부란(`2-3`)에 OneDrive 파일 링크를 붙여 넣어 클릭 시 바로 열리게 연동.
+### 🇺🇸 English Talking Points (For Committee Colleagues)
+> *"No confidential student, HR, or institutional files are hosted publicly. The numbered prompts (1–11, Appendices A–B) are standard OCAD U Senate IQAP template headers. All sensitive supporting documents (PDF briefs, Registrar sequencing charts, spreadsheets) remain strictly inside our institutional OCAD U OneDrive ('Share with specific members'). Furthermore, our committee's working drafts can be synced using client-side AES-256 encryption or saved directly as a JSON file inside our shared OneDrive folder."*
 
-#### 옵션 2. GitHub Pages (앱 화면) + GitHub 자체 저장소 API 연동 + OneDrive (첨부 문서함) **[외부 서비스 가입 없이 GitHub 하나로 통합 시 추천]**
-- **작동 방식**: 별도의 DB(Firebase 등)를 만들지 않고, **GitHub Repository 자체를 데이터 저장소**로 사용합니다.
-- **보안 및 동기화**: 커미티 멤버들이 앱에 접속할 때 공유된 접속 키(Access Key)를 입력하면, 앱이 GitHub 저장소의 `data.json`을 직접 읽고 씁니다 (저장 버튼 클릭 시 또는 주기적 자동 동기화 + 충돌 방지 병합 지원).
-- **장점**: 외부 DB 설정이 전혀 필요 없고 **GitHub 계정 하나만으로 호스팅과 데이터 저장, 버전 히스토리(누가 언제 무엇을 바꿨는지 Git 기록)가 모두 해결**됩니다.
+---
+
+## 4. 파일 구조 (Repository Structure)
+- [index.html](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/index.html): 메인 애플리케이션 UI 및 보안/GitHub 동기화 모달
+- [styles.css](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/styles.css): 반응형 레이아웃, Gray Zone 워크스페이스, 반응형 테이블 및 인쇄용 스타일시트
+- [brief-data.js](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/brief-data.js): `EXAN Coop Major Mod Brief .pdf`에서 추출한 13개 문항(Part I 1~3, Part II 4~11, Appendix A~B), 기존 답변(2-1), Gray Zone 초기 세분화 데이터(2-2)
+- [app.js](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/app.js): 상태 관리, Gray Zone 세부 항목 쪼개기(`+ Dissect`), 리치 텍스트/표 편집기, AES-256-GCM 암호화, GitHub API 동기화 및 JSON 백업 로직
+- [.gitignore](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/.gitignore): `resource/` 폴더(원본 PDF 보관 폴더)를 Git 추적에서 제외하여 외부 유출 방지
