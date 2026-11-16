@@ -21,7 +21,13 @@ Each item uses its own question number (`N` = `1`..`11`, `A`, `B`) as the prefix
 ```text
 [Item Card #N (1–11, Appendix A–B)]
  ├── N. Question / Prompt (IQAP Major Modification Brief)
- │    └── Official question text (editable via "Edit Question / Title")
+ │    ├── Official question text (editable via "Edit Question / Title")
+ │    └── Reference Data & Stakeholder Input Bar (item-specific quick buttons):
+ │         • Item #1:  [↗ Original Proposal for the New EXAN Program]
+ │         • Item #2:  [▣ Program Chair Input]
+ │         • Item #4:  [↗ Curriculum Map]
+ │         • Item #9:  [▣ Program Chair Input]  [▣ Dean Input]
+ │         • Item #11: [▣ Dean Input]
  │
  ├── N-1. Existing / Pre-filled Answer Input
  │    └── Collapsible rich-text & table editor pre-populated with CLT/administration text

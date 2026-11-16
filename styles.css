@@ -699,6 +699,58 @@ mark {
   gap: 0.4rem;
 }
 
+.question-links-bar {
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--border-color);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.question-links-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-right: 0.2rem;
+}
+
+.qlink-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.qlink-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: 0.79rem;
+  font-weight: 700;
+  padding: 0.32rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.qlink-btn:hover {
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  border-color: var(--accent-primary);
+}
+
+.qlink-btn.has-data {
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+}
+
 /* 2-1. Existing Answer Block */
 .block-existing {
   background: var(--bg-page);

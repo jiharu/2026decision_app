@@ -189,6 +189,18 @@ function normalizeLoadedState(state) {
         item.status = "no_response_needed";
       }
     }
+    const defItem = INITIAL_ITEMS.find((d) => d.id === item.id);
+    if (defItem && Array.isArray(defItem.questionLinks)) {
+      if (!Array.isArray(item.questionLinks) || item.questionLinks.length === 0) {
+        item.questionLinks = structuredClone(defItem.questionLinks);
+      } else {
+        for (const defLink of defItem.questionLinks) {
+          if (!item.questionLinks.some((l) => l.id === defLink.id)) {
+            item.questionLinks.push(structuredClone(defLink));
+          }
+        }
+      }
+    }
   }
   return state;
 }
@@ -772,6 +784,10 @@ function buildItemCardDOM(item) {
     qBlock.appendChild(qContent);
   }
 
+  if (Array.isArray(item.questionLinks) && item.questionLinks.length > 0) {
+    qBlock.appendChild(buildQuestionLinksBarDOM(item, num));
+  }
+
   // -------------------------------------------------------------------------
   // N-1. Existing / Pre-filled Answer Block
   // -------------------------------------------------------------------------
@@ -853,6 +869,119 @@ function buildItemCardDOM(item) {
   details.append(summary, body);
   card.appendChild(details);
   return card;
+}
+
+function buildQuestionLinksBarDOM(item, num) {
+  const bar = document.createElement("div");
+  bar.className = "question-links-bar";
+
+  const label = document.createElement("span");
+  label.className = "question-links-label";
+  label.textContent = "Reference Data & Stakeholder Input:";
+  bar.appendChild(label);
+
+  for (const qlink of item.questionLinks) {
+    const group = document.createElement("div");
+    group.className = "qlink-group";
+
+    const hasUrl = Boolean(qlink.url && qlink.url.trim());
+    const hasNotes = hasMeaningfulHtmlContent(qlink.notesHtml);
+    const hasData = hasUrl || hasNotes;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `qlink-btn${hasData ? " has-data" : ""}`;
+    const icon = qlink.kind === "document" ? "↗" : "▣";
+    btn.textContent = `${icon} ${qlink.label}${hasData ? " ●" : ""}`;
+    btn.title = hasData
+      ? `Click to view or edit ${qlink.label}`
+      : `Click to add link or input for ${qlink.label}`;
+    btn.addEventListener("click", () => {
+      openQuestionLinkDialog(item, qlink, num);
+    });
+    group.appendChild(btn);
+
+    if (hasUrl) {
+      const directLink = document.createElement("a");
+      directLink.href = qlink.url.trim();
+      directLink.target = "_blank";
+      directLink.rel = "noopener noreferrer";
+      directLink.className = "btn btn-sm no-print";
+      directLink.textContent = "Open URL ↗";
+      directLink.title = `Open linked document for ${qlink.label} in a new tab`;
+      group.appendChild(directLink);
+    }
+
+    bar.appendChild(group);
+  }
+
+  return bar;
+}
+
+function openQuestionLinkDialog(item, qlink, num) {
+  const dialog = document.getElementById("question-link-dialog");
+  if (!dialog) return;
+
+  const titleEl = document.getElementById("qlink-dialog-title");
+  if (titleEl) {
+    titleEl.textContent = `Item #${num} — ${qlink.label}`;
+  }
+
+  const urlInput = document.getElementById("qlink-url-input");
+  const openUrlBtn = document.getElementById("btn-qlink-open-url");
+  if (urlInput && openUrlBtn) {
+    urlInput.value = qlink.url || "";
+    openUrlBtn.disabled = !urlInput.value.trim();
+
+    urlInput.oninput = () => {
+      qlink.url = urlInput.value.trim();
+      openUrlBtn.disabled = !qlink.url;
+      saveStateLocally();
+    };
+
+    openUrlBtn.onclick = () => {
+      if (qlink.url) {
+        window.open(qlink.url, "_blank", "noopener,noreferrer");
+      }
+    };
+  }
+
+  const currMapWrap = document.getElementById("qlink-jump-currmap-wrap");
+  const jumpAppBBtn = document.getElementById("btn-qlink-jump-appb");
+  if (currMapWrap && jumpAppBBtn) {
+    const isCurrMap = qlink.id === "qlink-4-currmap" || /curriculum map/i.test(qlink.label);
+    currMapWrap.style.display = isCurrMap ? "block" : "none";
+    jumpAppBBtn.onclick = () => {
+      dialog.close();
+      const appBCard = document.getElementById("card-item-app-b");
+      if (appBCard) {
+        const detailsEl = appBCard.querySelector("details");
+        if (detailsEl) detailsEl.open = true;
+        appBCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+  }
+
+  const editorMount = document.getElementById("qlink-editor-mount");
+  if (editorMount) {
+    editorMount.replaceChildren();
+    const { wrapper } = createRichEditorWidget({
+      initialHtml: qlink.notesHtml || "",
+      placeholder: `Paste or enter content, notes, or tables for "${qlink.label}" here...`,
+      onChange: (html) => {
+        qlink.notesHtml = html;
+        saveStateLocally();
+      }
+    });
+    editorMount.appendChild(wrapper);
+  }
+
+  dialog.onclose = () => {
+    dialog.returnValue = "";
+    renderItemsList();
+  };
+
+  dialog.showModal();
 }
 
 function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
@@ -1412,6 +1541,7 @@ function restorePreExtractedBriefTemplate() {
       ...defItem,
       status: currentItem.status || defItem.status,
       attachments: currentItem.attachments?.length ? currentItem.attachments : defItem.attachments,
+      questionLinks: currentItem.questionLinks?.length ? currentItem.questionLinks : defItem.questionLinks,
       grayZoneSubItems: defItem.grayZoneSubItems.map((defSub, idx) => {
         const curSub = currentItem.grayZoneSubItems[idx];
         if (!curSub) return defSub;

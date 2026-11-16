@@ -82,6 +82,15 @@ const INITIAL_ITEMS = [
         optionalHtml: ""
       }
     ],
+    questionLinks: [
+      {
+        id: "qlink-1-proposal",
+        label: "Original Proposal for the New EXAN Program",
+        kind: "document",
+        url: "",
+        notesHtml: ""
+      }
+    ],
     attachments: []
   },
   {
@@ -143,6 +152,15 @@ const INITIAL_ITEMS = [
         finalHtml: "",
         optionalAssignee: "",
         optionalHtml: ""
+      }
+    ],
+    questionLinks: [
+      {
+        id: "qlink-2-chair",
+        label: "Program Chair Input",
+        kind: "input",
+        url: "",
+        notesHtml: ""
       }
     ],
     attachments: []
@@ -214,6 +232,15 @@ const INITIAL_ITEMS = [
         finalHtml: "",
         optionalAssignee: "",
         optionalHtml: ""
+      }
+    ],
+    questionLinks: [
+      {
+        id: "qlink-4-currmap",
+        label: "Curriculum Map",
+        kind: "document",
+        url: "",
+        notesHtml: ""
       }
     ],
     attachments: []
@@ -349,6 +376,22 @@ const INITIAL_ITEMS = [
         optionalHtml: ""
       }
     ],
+    questionLinks: [
+      {
+        id: "qlink-9-chair",
+        label: "Program Chair Input",
+        kind: "input",
+        url: "",
+        notesHtml: ""
+      },
+      {
+        id: "qlink-9-dean",
+        label: "Dean Input",
+        kind: "input",
+        url: "",
+        notesHtml: ""
+      }
+    ],
     attachments: []
   },
   {
@@ -437,6 +480,15 @@ Existing student information systems and career services platforms will provide 
         finalHtml: "",
         optionalAssignee: "",
         optionalHtml: ""
+      }
+    ],
+    questionLinks: [
+      {
+        id: "qlink-11-dean",
+        label: "Dean Input",
+        kind: "input",
+        url: "",
+        notesHtml: ""
       }
     ],
     attachments: []

@@ -15,7 +15,7 @@
         <div class="ocad-badge">OCAD U<br>EXAN</div>
         <div>
           <h1 class="brand-title">IQAP Major Modifications — Committee Decision Workspace</h1>
-          <p class="brand-subtitle">Part B (1–3) · Part C (4–11) · Appendixes (A, B) | Gray Zone Dissection &amp; Role Assignment</p>
+          <p class="brand-subtitle">Part B (1–3) · Part C (4–11) · Appendices (A, B) | Gray Zone Dissection &amp; Role Assignment</p>
         </div>
       </div>
 
@@ -88,7 +88,7 @@
           <button type="button" class="tab-btn active" data-section-tab="all">All (13 Items)</button>
           <button type="button" class="tab-btn" data-section-tab="part1">Part B (1–3)</button>
           <button type="button" class="tab-btn" data-section-tab="part2">Part C (4–11)</button>
-          <button type="button" class="tab-btn" data-section-tab="appendixes">Appendixes (A, B)</button>
+          <button type="button" class="tab-btn" data-section-tab="appendixes">Appendices (A, B)</button>
         </div>
 
         <div class="status-filters" aria-label="Filter by Status">
@@ -226,6 +226,41 @@
     <div class="dialog-footer">
       <form method="dialog">
         <button type="submit" class="btn">Close</button>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Dialog 3: Question Reference Data & Stakeholder Input Modal -->
+  <dialog id="question-link-dialog" closedby="any" aria-labelledby="qlink-dialog-title">
+    <div class="dialog-header">
+      <h2 id="qlink-dialog-title">Reference Data &amp; Stakeholder Input</h2>
+      <form method="dialog">
+        <button type="submit" class="btn btn-sm" aria-label="Close">✕</button>
+      </form>
+    </div>
+    <div class="dialog-body">
+      <div class="form-group">
+        <label for="qlink-url-input">Linked Document / OneDrive URL (Optional)</label>
+        <div style="display:flex;gap:0.45rem;align-items:center;">
+          <input type="url" id="qlink-url-input" style="flex:1;" placeholder="Paste OneDrive or document URL (https://...)">
+          <button type="button" id="btn-qlink-open-url" class="btn btn-primary" disabled>Open Link ↗</button>
+        </div>
+      </div>
+
+      <div id="qlink-jump-currmap-wrap" style="display:none;">
+        <button type="button" id="btn-qlink-jump-appb" class="btn btn-sm btn-secondary">
+          ↓ Jump to Appendix B (Program Curriculum Map Section in App)
+        </button>
+      </div>
+
+      <div class="form-group">
+        <label>Saved Reference Excerpts / Stakeholder Input (Supports Text &amp; Tables)</label>
+        <div id="qlink-editor-mount"></div>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <form method="dialog">
+        <button type="submit" class="btn btn-primary">Done &amp; Save</button>
       </form>
     </div>
   </dialog>
