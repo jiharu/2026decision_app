@@ -1,5 +1,3 @@
-import { INITIAL_BRIEF_METADATA, INITIAL_ITEMS, STATUS_OPTIONS } from "./brief-data.js";
-
 const STORAGE_KEY = "ocadu_exan_iqap_decision_app_v1";
 const GITHUB_CONFIG_KEY = "ocadu_exan_iqap_github_config_v1";
 
@@ -17,7 +15,7 @@ const ALLOWED_ATTRIBUTES = [
 /**
  * Safely sanitize and insert HTML into an element following modern-web-guidance (sanitize-untrusted-html)
  */
-export function safeSetHTML(el, rawHtml) {
+function safeSetHTML(el, rawHtml) {
   const html = rawHtml || "";
   if ("setHTML" in Element.prototype) {
     try {
@@ -35,7 +33,7 @@ export function safeSetHTML(el, rawHtml) {
   el.innerHTML = sanitizeHTMLString(html);
 }
 
-export function sanitizeHTMLString(rawHtml) {
+function sanitizeHTMLString(rawHtml) {
   if (!rawHtml) return "";
   const parser = new DOMParser();
   const doc = parser.parseFromString(rawHtml, "text/html");
@@ -118,7 +116,7 @@ function base64ToBytes(b64) {
   return out;
 }
 
-export async function encryptWorkspacePayload(plainObject, passcode) {
+async function encryptWorkspacePayload(plainObject, passcode) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveAesGcmKey(passcode, salt);
@@ -141,7 +139,7 @@ export async function encryptWorkspacePayload(plainObject, passcode) {
   };
 }
 
-export async function decryptWorkspacePayload(envelope, passcode) {
+async function decryptWorkspacePayload(envelope, passcode) {
   const salt = base64ToBytes(envelope.salt);
   const iv = base64ToBytes(envelope.iv);
   const ciphertext = base64ToBytes(envelope.ciphertext);
@@ -166,6 +164,8 @@ let activeSectionFilter = "all";
 let activeStatusFilter = "all";
 let searchQuery = "";
 let questionEditMode = {}; // { [itemId]: boolean }
+let cardOpenState = {}; // { [itemId]: boolean }
+let existingOpenState = {}; // { [itemId]: boolean }
 let autoSyncTimer = null;
 
 function cloneDefaultState() {
@@ -566,7 +566,7 @@ function buildItemCardDOM(item) {
   // so Find-in-page (Cmd+F) automatically reveals collapsed items
   const details = document.createElement("details");
   details.className = "item-card-details";
-  details.open = true;
+  details.open = cardOpenState[item.id] ?? true;
 
   const summary = document.createElement("summary");
 
@@ -611,7 +611,17 @@ function buildItemCardDOM(item) {
   subCountBadge.className = "status-badge status-not-started";
   subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length} sub-item(s)`;
 
-  headerRight.append(subCountBadge, statusSelect);
+  const toggleHint = document.createElement("span");
+  toggleHint.className = "btn btn-sm no-print";
+  toggleHint.style.pointerEvents = "none";
+  toggleHint.textContent = details.open ? "▾ Collapse" : "▸ Expand";
+
+  details.addEventListener("toggle", () => {
+    cardOpenState[item.id] = details.open;
+    toggleHint.textContent = details.open ? "▾ Collapse" : "▸ Expand";
+  });
+
+  headerRight.append(subCountBadge, statusSelect, toggleHint);
   summary.append(headerLeft, headerRight);
 
   const body = document.createElement("div");
@@ -682,10 +692,14 @@ function buildItemCardDOM(item) {
   // -------------------------------------------------------------------------
   const exDetails = document.createElement("details");
   exDetails.className = "block-existing";
-  exDetails.open = false;
+  exDetails.open = existingOpenState[item.id] ?? false;
 
   const exSummary = document.createElement("summary");
   exSummary.innerHTML = `<span>2-1. Existing / Pre-filled Answer Input (Pre-populated by CLT / Administration — click to expand or edit)</span><span style="font-size:0.76rem;color:var(--text-muted);">Expand / Collapse ▾</span>`;
+
+  exDetails.addEventListener("toggle", () => {
+    existingOpenState[item.id] = exDetails.open;
+  });
 
   const exContent = document.createElement("div");
   exContent.className = "block-existing-content";
@@ -1413,14 +1427,24 @@ function initApp() {
 
   // Expand / Collapse all items
   document.getElementById("btn-expand-all")?.addEventListener("click", () => {
-    document.querySelectorAll(".item-card-details").forEach((d) => {
+    for (const item of appState.items) {
+      cardOpenState[item.id] = true;
+      existingOpenState[item.id] = true;
+    }
+    document.querySelectorAll(".item-card-details, .block-existing").forEach((d) => {
       d.open = true;
     });
+    updateSyncStatusUI("ok", "Expanded all items & pre-filled answers");
   });
   document.getElementById("btn-collapse-all")?.addEventListener("click", () => {
-    document.querySelectorAll(".item-card-details").forEach((d) => {
+    for (const item of appState.items) {
+      cardOpenState[item.id] = false;
+      existingOpenState[item.id] = false;
+    }
+    document.querySelectorAll(".item-card-details, .block-existing").forEach((d) => {
       d.open = false;
     });
+    updateSyncStatusUI("ok", "Collapsed all items");
   });
 
   // Export / Import JSON buttons

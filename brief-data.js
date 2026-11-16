@@ -7,7 +7,7 @@
  *  - Appendixes: Items A, B
  */
 
-export const INITIAL_BRIEF_METADATA = {
+const INITIAL_BRIEF_METADATA = {
   documentTitle: "IQAP Major Modifications — Proposal Brief (EXAN Co-op & Trimesterization)",
   dateSubmitted: "",
   preparedBy: "Experimental Animation (EXAN) Curriculum Committee",
@@ -18,7 +18,7 @@ export const INITIAL_BRIEF_METADATA = {
   lastUpdated: new Date().toISOString()
 };
 
-export const STATUS_OPTIONS = [
+const STATUS_OPTIONS = [
   { value: "not_started", label: "Not Started", badgeClass: "status-not-started" },
   { value: "needs_data", label: "Needs Data / Info Requested", badgeClass: "status-needs-data" },
   { value: "delegate_chair", label: "Delegate to Chair / Other Unit", badgeClass: "status-delegate" },
@@ -26,7 +26,7 @@ export const STATUS_OPTIONS = [
   { value: "finalized", label: "Finalized", badgeClass: "status-finalized" }
 ];
 
-export const INITIAL_ITEMS = [
+const INITIAL_ITEMS = [
   // =========================================================================
   // PART I (Part B: PROPOSED MAJOR MODIFICATION) — Items 1, 2, 3
   // =========================================================================
