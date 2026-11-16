@@ -1,4 +1,4 @@
-const STORAGE_KEY = "ocadu_exan_iqap_decision_app_v1";
+const STORAGE_KEY = "ocadu_exan_iqap_decision_app_v2";
 const GITHUB_CONFIG_KEY = "ocadu_exan_iqap_github_config_v1";
 
 const ALLOWED_ELEMENTS = [
@@ -847,7 +847,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   assigneeInput.id = assigneeInputId;
   assigneeInput.type = "text";
   assigneeInput.className = "auto-fit-input";
-  assigneeInput.placeholder = "e.g., Program Chair (Wrik/Philippe), Committee, Kat, Haru, Luke, Gustavo, CEAD, Registrar...";
+  assigneeInput.placeholder = "e.g., Program Chair, Curriculum Committee, Faculty Representative, CEAD, Registrar, CLT...";
   assigneeInput.value = sub.primaryAssignee || "";
   assigneeInput.addEventListener("input", () => {
     sub.primaryAssignee = assigneeInput.value;
@@ -856,7 +856,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   assigneeBar.append(assigneeLabel, assigneeInput);
 
-  // N-2-1-1 (Draft) & N-2-1-2 (Finalized) Side-by-Side Grid
+  // N-2-1-1 (Draft) & N-2-2 (Optional Responder) Side-by-Side Grid, followed by N-2-1-2 (Finalized)
   const responsesGrid = document.createElement("div");
   responsesGrid.className = "responses-grid";
 
@@ -884,7 +884,53 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   draftBox.append(draftHeader, draftEditorWidget);
 
-  // N-2-1-2 Finalized Box
+  // N-2-2. Optional Responder (Anyone Else Who Wants to Answer) — placed in the grid alongside Draft
+  const optBox = document.createElement("div");
+  optBox.className = "response-box optional-box";
+
+  const optHeader = document.createElement("div");
+  optHeader.className = "response-box-header";
+
+  const optLabelWrap = document.createElement("div");
+  optLabelWrap.style.display = "flex";
+  optLabelWrap.style.flexWrap = "wrap";
+  optLabelWrap.style.alignItems = "center";
+  optLabelWrap.style.gap = "0.5rem";
+
+  const optTitle = document.createElement("label");
+  const optInputId = `opt-assignee-${sub.id}`;
+  optTitle.htmlFor = optInputId;
+  optTitle.className = "response-box-title";
+  optTitle.textContent = `${num}-2-2. Optional Responder (Who else wants to contribute / comment):`;
+
+  const optInput = document.createElement("input");
+  optInput.id = optInputId;
+  optInput.type = "text";
+  optInput.className = "auto-fit-input";
+  optInput.placeholder = "e.g., Faculty Member, Curriculum Committee, Advisor (free text)";
+  optInput.value = sub.optionalAssignee || "";
+  optInput.addEventListener("input", () => {
+    sub.optionalAssignee = optInput.value;
+    saveStateLocally();
+  });
+
+  optLabelWrap.append(optTitle, optInput);
+  optHeader.appendChild(optLabelWrap);
+
+  const { wrapper: optEditorWidget } = createRichEditorWidget({
+    initialHtml: sub.optionalHtml,
+    placeholder: `${num}-2-2. Enter optional response, additional perspective, or supporting tables...`,
+    onChange: (html) => {
+      sub.optionalHtml = html;
+      saveStateLocally();
+    }
+  });
+
+  optBox.append(optHeader, optEditorWidget);
+
+  responsesGrid.append(draftBox, optBox);
+
+  // N-2-1-2 Finalized Box — placed below Draft & Optional Responder
   const finalBox = document.createElement("div");
   finalBox.className = "response-box final-box";
 
@@ -920,53 +966,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   finalHeader.append(finalTitle, copyFromDraftBtn);
   finalBox.append(finalHeader, finalEditorWidget);
 
-  responsesGrid.append(draftBox, finalBox);
-
-  // N-2-2. Optional Responder (Anyone Else Who Wants to Answer)
-  const optBox = document.createElement("div");
-  optBox.className = "response-box optional-box";
-
-  const optHeader = document.createElement("div");
-  optHeader.className = "response-box-header";
-
-  const optLabelWrap = document.createElement("div");
-  optLabelWrap.style.display = "flex";
-  optLabelWrap.style.flexWrap = "wrap";
-  optLabelWrap.style.alignItems = "center";
-  optLabelWrap.style.gap = "0.5rem";
-
-  const optTitle = document.createElement("label");
-  const optInputId = `opt-assignee-${sub.id}`;
-  optTitle.htmlFor = optInputId;
-  optTitle.className = "response-box-title";
-  optTitle.textContent = `${num}-2-2. Optional Responder (Who else wants to contribute / comment):`;
-
-  const optInput = document.createElement("input");
-  optInput.id = optInputId;
-  optInput.type = "text";
-  optInput.className = "auto-fit-input";
-  optInput.placeholder = "Enter optional contributor name(s) or role (free text)";
-  optInput.value = sub.optionalAssignee || "";
-  optInput.addEventListener("input", () => {
-    sub.optionalAssignee = optInput.value;
-    saveStateLocally();
-  });
-
-  optLabelWrap.append(optTitle, optInput);
-  optHeader.appendChild(optLabelWrap);
-
-  const { wrapper: optEditorWidget } = createRichEditorWidget({
-    initialHtml: sub.optionalHtml,
-    placeholder: `${num}-2-2. Enter optional response, additional perspective, or supporting tables...`,
-    onChange: (html) => {
-      sub.optionalHtml = html;
-      saveStateLocally();
-    }
-  });
-
-  optBox.append(optHeader, optEditorWidget);
-
-  subCard.append(subTop, assigneeBar, responsesGrid, optBox);
+  subCard.append(subTop, assigneeBar, responsesGrid, finalBox);
   return subCard;
 }
 

@@ -47,8 +47,8 @@
 ---
 
 ## 4. Repository Structure
-- [index.html](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/index.html): Application shell, dashboard filters, GitHub sync modal, and security modal
-- [styles.css](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/styles.css): Responsive layout, Gray Zone workspace styling, container-query tables, dark mode, and print styles
-- [brief-data.js](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/brief-data.js): Pre-extracted questions, CLT pre-filled text, and initial Gray Zone sub-items for Items 1–11 and Appendices A–B
-- [app.js](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/app.js): State management, Gray Zone dissection, rich text/table editor, WebCrypto `AES-256-GCM` encryption, and GitHub API sync
-- [.gitignore](file:///Users/jiharu/Frodo/OCADU/code_work/2026decision_app/.gitignore): Excludes `resource/` and system files from version control
+- `index.html`: Application shell, dashboard filters, GitHub sync modal, and security modal
+- `styles.css`: Responsive layout, Gray Zone workspace styling, container-query tables, dark mode, and print styles
+- `brief-data.js`: Pre-extracted questions, CLT pre-filled text, and initial Gray Zone sub-items for Items 1–11 and Appendices A–B
+- `app.js`: State management, Gray Zone dissection, rich text/table editor, WebCrypto `AES-256-GCM` encryption, and GitHub API sync
+- `.gitignore`: Excludes `resource/` and system files from version control

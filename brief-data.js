@@ -93,42 +93,42 @@ const INITIAL_ITEMS = [
     questionHtml: `<p><strong>2.</strong> Summarize the <strong>consultation</strong> undertaken with relevant academic units, including commentary on the impact of the proposed modification(s) on other programs. Consultation should include the academic leadership of other Faculties that offer courses required or elective in the program, Budget &amp; Planning and Institutional Analysis, Admissions &amp; Recruitment (e.g. regarding timeline of implementation and communication), and the heads of support units such as the Library, Registrar (including Advising), IT Services, Facilities &amp; Studio Services, Centre for Emerging Artists and Designers and the Faculty &amp; Curriculum Development Centre, as applicable.</p>`,
     existingAnswerHtml: `<p>To explore the feasibility of co-op streams within programs at OCAD U and to support the preparation of the Letter of Intent (LOI), there were rigorous consultation conducted with a range of university stakeholders between October 2025 – present, including:</p>
 <ul>
-  <li>Office of the Vice-President, Academic &amp; Provost (Natalie Nanton, Director, Academic Affairs &amp; Senate Secretary and Sandra Gabrielle, Vice-President, Academic &amp; Provost)</li>
-  <li>Office of the Registrar (Ben Peto, University Registrar &amp; Director, Enrolment Services)</li>
-  <li>Centre for Learning &amp; Teaching (Susan Ferguson, Director, Teaching &amp; Learning)</li>
-  <li>International Student Support (Susan Kemp, Manager, International Student Support)</li>
-  <li>Admissions &amp; Recruitment (Sean Baker, Director, Learning Pathways and Donald Kelly, Director, Admissions)</li>
-  <li>Financial Aid &amp; Awards (Anik Powell, Associate Registrar)</li>
-  <li>RBC Centre for Emerging Artists &amp; Designers (Zev Farber, Director)</li>
-  <li>Faculty of Art (Philippe Blanchard, Interim Dean)</li>
-  <li>Faculty of Design (Lesley-Ann Noel, Dean)</li>
-  <li>Faculty of Arts &amp; Science (Charles Reeve, Acting Dean)</li>
-  <li>OCAD Student Union (Dania Khan, Executive Director of Academic Affairs)</li>
-  <li>SIS &amp; Process Optimization (Emily Rostoks, Director)</li>
-  <li>Office of the Dean of Students (Jennifer Robinson, Dean of Students)</li>
-  <li>Budget &amp; Planning (Laura Wood, Executive Director, Institutional Analysis &amp; Budget Planning)</li>
+  <li>Office of the Vice-President, Academic &amp; Provost (Director, Academic Affairs &amp; Senate Secretary and Vice-President, Academic &amp; Provost)</li>
+  <li>Office of the Registrar (University Registrar &amp; Director, Enrolment Services)</li>
+  <li>Centre for Learning &amp; Teaching (Director, Teaching &amp; Learning)</li>
+  <li>International Student Support (Manager, International Student Support)</li>
+  <li>Admissions &amp; Recruitment (Director, Learning Pathways and Director, Admissions)</li>
+  <li>Financial Aid &amp; Awards (Associate Registrar)</li>
+  <li>RBC Centre for Emerging Artists &amp; Designers (Director)</li>
+  <li>Faculty of Art (Interim Dean)</li>
+  <li>Faculty of Design (Dean)</li>
+  <li>Faculty of Arts &amp; Science (Acting Dean)</li>
+  <li>OCAD Student Union (Executive Director of Academic Affairs)</li>
+  <li>SIS &amp; Process Optimization (Director)</li>
+  <li>Office of the Dean of Students (Dean of Students)</li>
+  <li>Budget &amp; Planning (Executive Director, Institutional Analysis &amp; Budget Planning)</li>
 </ul>
 <p>These initial consultations have informed the co-op program design as reflected in the LOI, as well as a range of implementation considerations.</p>
 <p>In September of 2026, a steering committee was established to provide on-going support and guidance to teams designing co-op streams within existing program and to guide co-op implementation and operations. The Co-Operative Education Program Steering Committee membership includes:</p>
 <ul>
-  <li><strong>Deanne Fisher</strong>, Vice Provost, Students and International (Chair)</li>
-  <li><strong>Zev Farber</strong>, Director, Centre for Emerging Artists and Designers</li>
-  <li><strong>Susan Ferguson</strong>, Director, Teaching and Learning</li>
-  <li><strong>Lesley-Ann Noel</strong>, Dean, Faculty of Design</li>
-  <li><strong>Philippe Blanchard</strong>, Interim Dean, Faculty of Art</li>
-  <li><strong>Ben Peto</strong>, University Registrar</li>
-  <li><strong>Angela Bains</strong>, Program Chair, Advertising</li>
-  <li><strong>Cathy Feraday-Miller</strong>, Program Curriculum Committee Chair, Experimental Animation</li>
-  <li><strong>Ali Qadeer</strong>, Program Chair, Graphic Design</li>
-  <li><strong>Peter Coppin</strong>, Program Chair, Industrial Design</li>
-  <li><strong>Travis Freeman</strong>, Curriculum Specialist, Quality Assurance</li>
-  <li><strong>David Wagschal</strong>, Quality Assurance Officer &amp; Associate Senate Secretary</li>
+  <li>Vice Provost, Students and International (Chair)</li>
+  <li>Director, Centre for Emerging Artists and Designers</li>
+  <li>Director, Teaching and Learning</li>
+  <li>Dean, Faculty of Design</li>
+  <li>Interim Dean, Faculty of Art</li>
+  <li>University Registrar</li>
+  <li>Program Chair, Advertising</li>
+  <li>Program Curriculum Committee Chair, Experimental Animation</li>
+  <li>Program Chair, Graphic Design</li>
+  <li>Program Chair, Industrial Design</li>
+  <li>Curriculum Specialist, Quality Assurance</li>
+  <li>Quality Assurance Officer &amp; Associate Senate Secretary</li>
 </ul>`,
     grayZoneSubItems: [
       {
         id: "gz-2-1",
         prompt: "[add any program specific consultations, including program and faculty level curriculum committee discussion etc. In the case that course offerings are being changed in this major mod, Chairs of affected programs should also be consulted]",
-        primaryAssignee: "Program Chair (Wrik / Philippe) & EXAN Curriculum Committee",
+        primaryAssignee: "Program Chair & EXAN Curriculum Committee",
         draftHtml: "",
         finalHtml: "",
         optionalAssignee: "",
@@ -173,7 +173,7 @@ const INITIAL_ITEMS = [
       {
         id: "gz-3-2",
         prompt: "[Insert summary of focus group findings and description of how the findings have informed program design and proposed curriculum changes.]",
-        primaryAssignee: "CLT (Travis) / Program Committee",
+        primaryAssignee: "CLT / Program Curriculum Committee",
         draftHtml: "",
         finalHtml: "",
         optionalAssignee: "",
@@ -337,7 +337,7 @@ const INITIAL_ITEMS = [
       {
         id: "gz-9-1",
         prompt: "[describe any faculty partnership with industry or community organization here]",
-        primaryAssignee: "Program Chair (Wrik / Philippe) & CEAD",
+        primaryAssignee: "Program Chair & CEAD",
         draftHtml: "",
         finalHtml: "",
         optionalAssignee: "",
@@ -448,7 +448,7 @@ Existing student information systems and career services platforms will provide 
     shortTitle: "Program Guides (Non-Co-op & Co-op Streams)",
     status: "needs_data",
     questionHtml: `<p><strong>Appendix A:</strong> Program Guides (Non-Co-op &amp; Co-op Streams) and Trimester Course Sequencing</p>`,
-    existingAnswerHtml: `<p><em>(Refer to Registrar Ben Peto’s Trimesterization &amp; Co-op Sequencing Chart and EXAN Program Guides)</em></p>`,
+    existingAnswerHtml: `<p><em>(Refer to Office of the Registrar’s Trimesterization &amp; Co-op Sequencing Chart and EXAN Program Guides)</em></p>`,
     grayZoneSubItems: [
       {
         id: "gz-a-1",
