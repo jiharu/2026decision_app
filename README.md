@@ -1,5 +1,7 @@
 # 2026 IQAP Major Modifications — Committee Decision Support App
 
+https://jiharu.github.io/2026decision_app/
+
 ## 1. Overview
 - **Purpose**: A real-time collaborative decision-support web application designed for the **Experimental Animation (EXAN) Curriculum Committee** at OCAD University to systematically dissect, assign, draft, and finalize responses for the **IQAP Major Modifications Proposal Brief (Co-op & Trimesterization)** under tight timelines and limited data conditions.
 - **Design & Privacy Principles**:
