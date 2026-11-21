@@ -143,20 +143,31 @@
           Sign in with Google
         </button>
 
-        <div class="auth-divider"><span>OR SIGN IN WITH EMAIL &amp; PASSWORD</span></div>
+        <div class="auth-divider"><span>OR USE COMMITTEE EMAIL &amp; PASSWORD</span></div>
 
         <form id="email-signin-form" style="display:flex;flex-direction:column;gap:0.65rem;">
           <div class="form-group">
             <label for="auth-email">Committee Email</label>
-            <input type="email" id="auth-email" autocomplete="email" placeholder="Enter your authorized email" required>
+            <input type="email" id="auth-email" autocomplete="email" placeholder="Enter your authorized email (e.g., name@ocadu.ca)" required>
           </div>
           <div class="form-group">
-            <label for="auth-password">Password</label>
-            <input type="password" id="auth-password" autocomplete="current-password" placeholder="Enter your password" required>
+            <label for="auth-password">Password (minimum 6 characters)</label>
+            <input type="password" id="auth-password" autocomplete="current-password" placeholder="Enter your password" minlength="6" required>
           </div>
-          <button type="submit" id="btn-email-signin" class="btn btn-secondary" style="justify-content:center;padding:0.55rem 1rem;">
-            Sign in with Email &amp; Password
-          </button>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+            <button type="submit" id="btn-email-signin" class="btn btn-primary" style="flex:1;justify-content:center;padding:0.55rem 0.9rem;">
+              Sign In
+            </button>
+            <button type="button" id="btn-email-signup" class="btn btn-secondary" style="flex:1;justify-content:center;padding:0.55rem 0.9rem;">
+              First-Time Setup: Create Password
+            </button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
+            <span style="font-size:0.75rem;color:var(--text-muted);">First visit? Enter your authorized email &amp; desired password, then click Create Password.</span>
+            <button type="button" id="btn-reset-password" class="btn btn-sm" style="white-space:nowrap;">
+              Forgot Password?
+            </button>
+          </div>
         </form>
       </div>
 

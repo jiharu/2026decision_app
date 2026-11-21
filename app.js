@@ -1949,6 +1949,56 @@ function initApp() {
     }
   });
 
+  document.getElementById("btn-email-signup")?.addEventListener("click", async () => {
+    if (!firebaseAuth) {
+      showAuthFeedback("Firebase SDK is not loaded (check internet connection).", true);
+      return;
+    }
+    const email = document.getElementById("auth-email")?.value.trim();
+    const password = document.getElementById("auth-password")?.value || "";
+    if (!email) {
+      showAuthFeedback("Please enter your authorized committee email first.", true);
+      return;
+    }
+    if (password.length < 6) {
+      showAuthFeedback("Please choose a password of at least 6 characters.", true);
+      return;
+    }
+    try {
+      showAuthFeedback("Creating your committee login...");
+      await firebaseAuth.createUserWithEmailAndPassword(email, password);
+      showAuthFeedback("");
+      const pwInput = document.getElementById("auth-password");
+      if (pwInput) pwInput.value = "";
+    } catch (err) {
+      console.error("Account creation error:", err);
+      if (err.code === "auth/email-already-in-use") {
+        showAuthFeedback("An account already exists for this email. Click 'Sign In' (or 'Forgot Password?') instead.", true);
+      } else {
+        showAuthFeedback(`Account setup failed: ${err.message}`, true);
+      }
+    }
+  });
+
+  document.getElementById("btn-reset-password")?.addEventListener("click", async () => {
+    if (!firebaseAuth) {
+      showAuthFeedback("Firebase SDK is not loaded (check internet connection).", true);
+      return;
+    }
+    const email = document.getElementById("auth-email")?.value.trim();
+    if (!email) {
+      showAuthFeedback("Enter your committee email in the box above, then click 'Forgot Password?'.", true);
+      return;
+    }
+    try {
+      await firebaseAuth.sendPasswordResetEmail(email);
+      showAuthFeedback(`Password reset link sent to ${email}. Please check your inbox (or spam folder).`);
+    } catch (err) {
+      console.error("Password reset error:", err);
+      showAuthFeedback(`Could not send reset email: ${err.message}`, true);
+    }
+  });
+
   document.getElementById("btn-cloud-seed-push")?.addEventListener("click", async () => {
     await pushFullStateToFirestore();
   });
