@@ -1,5 +1,4 @@
 const STORAGE_KEY = "ocadu_exan_iqap_decision_app_v2";
-const GITHUB_CONFIG_KEY = "ocadu_exan_iqap_github_config_v1";
 
 const ALLOWED_ELEMENTS = [
   "p", "b", "i", "strong", "em", "u", "mark", "ul", "ol", "li", "br",
@@ -157,8 +156,10 @@ async function decryptWorkspacePayload(envelope, passcode) {
 }
 
 // ============================================================================
-// Application State Management
+// Application State Management & Firebase Real-Time Sync State
 // ============================================================================
+const CLIENT_SESSION_ID = `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
 let appState = loadInitialState();
 let activeSectionFilter = "all";
 let activeStatusFilter = "all";
@@ -166,7 +167,17 @@ let searchQuery = "";
 let questionEditMode = {}; // { [itemId]: boolean }
 let cardOpenState = {}; // { [itemId]: boolean }
 let existingOpenState = {}; // { [itemId]: boolean }
-let autoSyncTimer = null;
+
+let firebaseApp = null;
+let firebaseAuth = null;
+let firebaseDb = null;
+let currentUser = null;
+let cloudSyncActive = false;
+let unsubscribeMetaListener = null;
+let unsubscribeItemsListener = null;
+let cloudDiffSyncTimer = null;
+const lastSyncedItemJson = new Map();
+let lastSyncedMetaJson = "";
 
 function cloneDefaultState() {
   return {
@@ -228,7 +239,12 @@ function saveStateLocally(statusMsg = "Auto-saved locally") {
   appState.metadata.lastUpdated = new Date().toISOString();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-    updateSyncStatusUI("ok", `${statusMsg} · ${formatShortTime(appState.metadata.lastUpdated)}`);
+    if (cloudSyncActive && currentUser) {
+      updateSyncStatusUI("live", `Live Syncing... · ${formatShortTime(appState.metadata.lastUpdated)}`);
+      scheduleCloudDiffSync();
+    } else {
+      updateSyncStatusUI("ok", `${statusMsg} · ${formatShortTime(appState.metadata.lastUpdated)}`);
+    }
     renderDashboardCountsOnly();
   } catch (err) {
     console.error("Local save error:", err);
@@ -251,6 +267,7 @@ function updateSyncStatusUI(level, text) {
   const label = document.getElementById("sync-status-text");
   if (!dot || !label) return;
   dot.className = "sync-dot";
+  if (level === "live") dot.classList.add("live");
   if (level === "warning") dot.classList.add("warning");
   if (level === "error") dot.classList.add("error");
   label.textContent = text;
@@ -1316,159 +1333,337 @@ function buildAttachmentsBlockDOM(item) {
 }
 
 // ============================================================================
-// GitHub Repository API Cloud Sync (Pull & Push)
+// Firebase Authentication & Real-Time Firestore Per-Item Sync
 // ============================================================================
-function loadGitHubConfig() {
-  try {
-    const raw = localStorage.getItem(GITHUB_CONFIG_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // ignore
-  }
-  return {
-    owner: "",
-    repo: "",
-    branch: "main",
-    path: "data/committee-workspace.json",
-    token: "",
-    passcode: "",
-    autoSync: false
-  };
+function getWorkspaceMetaRef() {
+  const wsId = typeof FIRESTORE_WORKSPACE_ID !== "undefined" ? FIRESTORE_WORKSPACE_ID : "exan-2026";
+  return firebaseDb.collection("workspaces").doc(wsId).collection("meta").doc("info");
 }
 
-function saveGitHubConfig(cfg) {
-  localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(cfg));
-  setupAutoSyncTimer(cfg);
+function getWorkspaceItemsCollectionRef() {
+  const wsId = typeof FIRESTORE_WORKSPACE_ID !== "undefined" ? FIRESTORE_WORKSPACE_ID : "exan-2026";
+  return firebaseDb.collection("workspaces").doc(wsId).collection("items");
 }
 
-function setupAutoSyncTimer(cfg) {
-  if (autoSyncTimer) {
-    clearInterval(autoSyncTimer);
-    autoSyncTimer = null;
-  }
-  if (cfg.autoSync && cfg.owner && cfg.repo && cfg.token) {
-    autoSyncTimer = setInterval(() => {
-      pullFromGitHub(true);
-    }, 30000);
-  }
-}
-
-async function pullFromGitHub(silent = false) {
-  const cfg = loadGitHubConfig();
-  if (!cfg.owner || !cfg.repo || !cfg.token) {
-    if (!silent) updateSyncStatusUI("warning", "Please configure GitHub Sync Settings first.");
+function showAuthFeedback(msg, isError = false) {
+  const box = document.getElementById("auth-feedback-box");
+  if (!box) return;
+  if (!msg) {
+    box.style.display = "none";
+    box.textContent = "";
     return;
   }
+  box.style.display = "block";
+  box.style.borderColor = isError ? "var(--accent-primary)" : "var(--border-strong)";
+  box.textContent = msg;
+}
 
+function updateAuthModalUI(user) {
+  const signedOutView = document.getElementById("auth-signed-out-view");
+  const signedInView = document.getElementById("auth-signed-in-view");
+  const userEmailEl = document.getElementById("auth-user-email");
+  const headerBtn = document.getElementById("btn-open-auth");
+  const cloudBadge = document.getElementById("auth-cloud-badge");
+
+  if (user) {
+    if (signedOutView) signedOutView.style.display = "none";
+    if (signedInView) signedInView.style.display = "flex";
+    if (userEmailEl) userEmailEl.textContent = user.email || "Authenticated User";
+    if (headerBtn) {
+      const shortName = (user.email || "Signed In").split("@")[0];
+      headerBtn.textContent = `● Live: ${shortName}`;
+    }
+    if (cloudBadge) {
+      cloudBadge.textContent = cloudSyncActive ? "Live Sync Active" : "Connecting...";
+    }
+  } else {
+    if (signedOutView) signedOutView.style.display = "flex";
+    if (signedInView) signedInView.style.display = "none";
+    if (headerBtn) {
+      headerBtn.textContent = "● Sign In (Live Sync)";
+    }
+  }
+}
+
+function stripCloudMetaFields(docData) {
+  const clean = { ...docData };
+  delete clean._clientSessionId;
+  delete clean._updatedAt;
+  delete clean._updatedBy;
+  return clean;
+}
+
+function snapshotCurrentSyncHashes() {
+  lastSyncedMetaJson = JSON.stringify(appState.metadata);
+  lastSyncedItemJson.clear();
+  for (const item of appState.items) {
+    lastSyncedItemJson.set(item.id, JSON.stringify(item));
+  }
+}
+
+function scheduleCloudDiffSync() {
+  if (!cloudSyncActive || !firebaseDb || !currentUser) return;
+  if (cloudDiffSyncTimer) clearTimeout(cloudDiffSyncTimer);
+  cloudDiffSyncTimer = setTimeout(() => {
+    flushCloudDiffSync();
+  }, 450);
+}
+
+async function flushCloudDiffSync() {
+  if (!cloudSyncActive || !firebaseDb || !currentUser) return;
   try {
-    if (!silent) updateSyncStatusUI("ok", "Pulling latest workspace from GitHub...");
-    const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${cfg.path}?ref=${encodeURIComponent(cfg.branch || "main")}`;
-    const res = await fetch(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${cfg.token}`,
-        Accept: "application/vnd.github+json"
-      },
-      cache: "no-store"
+    const batch = firebaseDb.batch();
+    let writeCount = 0;
+
+    const currentMetaJson = JSON.stringify(appState.metadata);
+    if (currentMetaJson !== lastSyncedMetaJson) {
+      batch.set(getWorkspaceMetaRef(), {
+        ...appState.metadata,
+        _clientSessionId: CLIENT_SESSION_ID,
+        _updatedAt: Date.now(),
+        _updatedBy: currentUser.email || ""
+      });
+      lastSyncedMetaJson = currentMetaJson;
+      writeCount++;
+    }
+
+    const itemsCol = getWorkspaceItemsCollectionRef();
+    for (const item of appState.items) {
+      const serialized = JSON.stringify(item);
+      if (serialized !== lastSyncedItemJson.get(item.id)) {
+        batch.set(itemsCol.doc(item.id), {
+          ...item,
+          _clientSessionId: CLIENT_SESSION_ID,
+          _updatedAt: Date.now(),
+          _updatedBy: currentUser.email || ""
+        });
+        lastSyncedItemJson.set(item.id, serialized);
+        writeCount++;
+      }
+    }
+
+    if (writeCount > 0) {
+      await batch.commit();
+      updateSyncStatusUI("live", `Live Synced (${writeCount} update${writeCount > 1 ? "s" : ""}) · ${formatShortTime(new Date().toISOString())}`);
+    }
+  } catch (err) {
+    console.error("Firestore write error:", err);
+    if (err.code === "permission-denied") {
+      handleFirestorePermissionDenied();
+    } else {
+      updateSyncStatusUI("error", `Cloud sync error: ${err.message}`);
+    }
+  }
+}
+
+async function pushFullStateToFirestore() {
+  if (!firebaseDb || !currentUser) return;
+  try {
+    updateSyncStatusUI("live", "Uploading full workspace to Firebase Firestore...");
+    const batch = firebaseDb.batch();
+    batch.set(getWorkspaceMetaRef(), {
+      ...appState.metadata,
+      _clientSessionId: CLIENT_SESSION_ID,
+      _updatedAt: Date.now(),
+      _updatedBy: currentUser.email || ""
     });
-
-    if (res.status === 404) {
-      if (!silent) updateSyncStatusUI("warning", "No workspace file found on GitHub yet. Click 'Save to GitHub (Push)' first.");
-      return;
+    const itemsCol = getWorkspaceItemsCollectionRef();
+    for (const item of appState.items) {
+      batch.set(itemsCol.doc(item.id), {
+        ...item,
+        _clientSessionId: CLIENT_SESSION_ID,
+        _updatedAt: Date.now(),
+        _updatedBy: currentUser.email || ""
+      });
     }
-    if (!res.ok) {
-      throw new Error(`GitHub API ${res.status}`);
+    await batch.commit();
+    snapshotCurrentSyncHashes();
+    updateSyncStatusUI("live", `Live Cloud Sync Active · Uploaded ${formatShortTime(new Date().toISOString())}`);
+    showAuthFeedback("Workspace successfully uploaded to Firebase Firestore.");
+  } catch (err) {
+    console.error("Full cloud upload error:", err);
+    if (err.code === "permission-denied") {
+      handleFirestorePermissionDenied();
+    } else {
+      showAuthFeedback(`Upload failed: ${err.message}`, true);
+      updateSyncStatusUI("error", `Cloud upload failed: ${err.message}`);
     }
+  }
+}
 
-    const fileMeta = await res.json();
-    const rawBytes = base64ToBytes(fileMeta.content.replace(/\s/g, ""));
-    const jsonText = new TextDecoder().decode(rawBytes);
-    const parsed = JSON.parse(jsonText);
+function handleFirestorePermissionDenied() {
+  stopFirestoreRealtimeSync();
+  const email = currentUser?.email || "this account";
+  const msg = `Access Denied: "${email}" is not authorized in Firestore Security Rules for workspaces/${typeof FIRESTORE_WORKSPACE_ID !== "undefined" ? FIRESTORE_WORKSPACE_ID : "exan-2026"}. Please check that your email is in the 4-member allowlist.`;
+  updateSyncStatusUI("error", "Access Denied (Not in 4-member allowlist)");
+  showAuthFeedback(msg, true);
+  const badge = document.getElementById("auth-cloud-badge");
+  if (badge) badge.textContent = "Access Denied";
+  const dlg = document.getElementById("auth-sync-dialog");
+  if (dlg && !dlg.open) dlg.showModal();
+}
 
-    let incomingState = parsed;
-    if (parsed.encrypted) {
-      if (!cfg.passcode) {
-        updateSyncStatusUI("warning", "Workspace is encrypted. Please enter the Committee Encryption Passcode in GitHub Sync Setup.");
+function stopFirestoreRealtimeSync() {
+  cloudSyncActive = false;
+  if (cloudDiffSyncTimer) {
+    clearTimeout(cloudDiffSyncTimer);
+    cloudDiffSyncTimer = null;
+  }
+  if (unsubscribeMetaListener) {
+    unsubscribeMetaListener();
+    unsubscribeMetaListener = null;
+  }
+  if (unsubscribeItemsListener) {
+    unsubscribeItemsListener();
+    unsubscribeItemsListener = null;
+  }
+}
+
+function startFirestoreRealtimeSync() {
+  if (!firebaseDb || !currentUser) return;
+  stopFirestoreRealtimeSync();
+  updateSyncStatusUI("live", "Connecting to Firebase Live Sync...");
+
+  let hasCheckedInitialSeed = false;
+
+  // 1. Real-time Metadata listener
+  unsubscribeMetaListener = getWorkspaceMetaRef().onSnapshot(
+    (docSnap) => {
+      cloudSyncActive = true;
+      updateAuthModalUI(currentUser);
+
+      if (!docSnap.exists) {
+        if (!hasCheckedInitialSeed) {
+          hasCheckedInitialSeed = true;
+          pushFullStateToFirestore();
+        }
         return;
       }
-      incomingState = await decryptWorkspacePayload(parsed, cfg.passcode);
-    }
 
-    if (incomingState && Array.isArray(incomingState.items)) {
-      appState = normalizeLoadedState(incomingState);
+      const raw = docSnap.data();
+      if (docSnap.metadata.hasPendingWrites || raw._clientSessionId === CLIENT_SESSION_ID) {
+        return;
+      }
+
+      const cleanMeta = stripCloudMetaFields(raw);
+      appState.metadata = { ...appState.metadata, ...cleanMeta };
+      lastSyncedMetaJson = JSON.stringify(appState.metadata);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-      renderMetadataFields();
-      renderItemsList();
-      updateSyncStatusUI("ok", `Synced from GitHub (Pull · ${formatShortTime(new Date().toISOString())})`);
+
+      const activeId = document.activeElement?.id || "";
+      if (!activeId.startsWith("meta-")) {
+        renderMetadataFields();
+      }
+      updateSyncStatusUI("live", `Live Sync · Metadata updated · ${formatShortTime(new Date().toISOString())}`);
+    },
+    (err) => {
+      console.error("Firestore meta listener error:", err);
+      if (err.code === "permission-denied") {
+        handleFirestorePermissionDenied();
+      } else {
+        updateSyncStatusUI("error", `Sync connection error: ${err.message}`);
+      }
     }
-  } catch (err) {
-    console.error("GitHub pull error:", err);
-    if (!silent) updateSyncStatusUI("error", `GitHub Pull failed: ${err.message}`);
-  }
+  );
+
+  // 2. Real-time Per-Item Collection listener
+  unsubscribeItemsListener = getWorkspaceItemsCollectionRef().onSnapshot(
+    (querySnap) => {
+      cloudSyncActive = true;
+      updateAuthModalUI(currentUser);
+
+      if (querySnap.empty) {
+        if (!hasCheckedInitialSeed) {
+          hasCheckedInitialSeed = true;
+          pushFullStateToFirestore();
+        }
+        return;
+      }
+
+      let remoteChangedCodes = [];
+      let needsFullRender = false;
+
+      querySnap.docChanges().forEach((change) => {
+        if (change.type !== "added" && change.type !== "modified") return;
+        const raw = change.doc.data();
+        if (change.doc.metadata.hasPendingWrites || raw._clientSessionId === CLIENT_SESSION_ID) {
+          return;
+        }
+
+        const cleanItem = stripCloudMetaFields(raw);
+        const idx = appState.items.findIndex((i) => i.id === cleanItem.id);
+        if (idx >= 0) {
+          appState.items[idx] = cleanItem;
+          normalizeLoadedState(appState);
+          lastSyncedItemJson.set(cleanItem.id, JSON.stringify(appState.items[idx]));
+
+          // Update ONLY this card in the DOM if the user's cursor is not currently inside it
+          const existingCard = document.getElementById(`card-${cleanItem.id}`);
+          const userFocusedInsideCard = existingCard && existingCard.contains(document.activeElement);
+          if (existingCard && !userFocusedInsideCard) {
+            const newCard = buildItemCardDOM(appState.items[idx]);
+            existingCard.replaceWith(newCard);
+          } else if (!existingCard) {
+            needsFullRender = true;
+          }
+          remoteChangedCodes.push(appState.items[idx].code);
+        }
+      });
+
+      if (remoteChangedCodes.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        if (needsFullRender) {
+          renderItemsList();
+        } else {
+          renderDashboardCountsOnly();
+          updateQuickJumpPillsState();
+        }
+        const labelText =
+          remoteChangedCodes.length === 1
+            ? `Live Sync · Item #${remoteChangedCodes[0]} updated`
+            : `Live Sync · ${remoteChangedCodes.length} items synced`;
+        updateSyncStatusUI("live", `${labelText} · ${formatShortTime(new Date().toISOString())}`);
+      } else {
+        snapshotCurrentSyncHashes();
+        updateSyncStatusUI("live", `Live Sync Connected · ${formatShortTime(new Date().toISOString())}`);
+      }
+    },
+    (err) => {
+      console.error("Firestore items listener error:", err);
+      if (err.code === "permission-denied") {
+        handleFirestorePermissionDenied();
+      } else {
+        updateSyncStatusUI("error", `Sync connection error: ${err.message}`);
+      }
+    }
+  );
 }
 
-async function pushToGitHub() {
-  const cfg = loadGitHubConfig();
-  if (!cfg.owner || !cfg.repo || !cfg.token) {
-    const dlg = document.getElementById("github-sync-dialog");
-    if (dlg) dlg.showModal();
+function initFirebase() {
+  if (typeof firebase === "undefined" || typeof FIREBASE_CONFIG === "undefined") {
+    updateSyncStatusUI("ok", "Offline / Local Mode (Firebase SDK unavailable)");
     return;
   }
-
   try {
-    updateSyncStatusUI("ok", "Pushing workspace to GitHub repository...");
-    const apiUrl = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${cfg.path}`;
+    firebaseApp = firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CONFIG);
+    firebaseAuth = firebase.auth();
+    firebaseDb = firebase.firestore();
 
-    // 1. Check current SHA if file exists
-    let existingSha = undefined;
-    const getRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(cfg.branch || "main")}`, {
-      headers: {
-        Authorization: `Bearer ${cfg.token}`,
-        Accept: "application/vnd.github+json"
-      },
-      cache: "no-store"
+    firebaseAuth.onAuthStateChanged((user) => {
+      currentUser = user || null;
+      showAuthFeedback("");
+      if (currentUser) {
+        updateAuthModalUI(currentUser);
+        startFirestoreRealtimeSync();
+      } else {
+        stopFirestoreRealtimeSync();
+        updateAuthModalUI(null);
+        updateSyncStatusUI("ok", "Local Auto-Save Only (Sign in for Live Sync)");
+      }
     });
-    if (getRes.ok) {
-      const existingMeta = await getRes.json();
-      existingSha = existingMeta.sha;
-    }
-
-    // 2. Prepare payload (optionally AES-256-GCM encrypted with passcode)
-    appState.metadata.lastUpdated = new Date().toISOString();
-    let payloadToStore = appState;
-    if (cfg.passcode && cfg.passcode.trim() !== "") {
-      payloadToStore = await encryptWorkspacePayload(appState, cfg.passcode.trim());
-    }
-
-    const encodedBytes = new TextEncoder().encode(JSON.stringify(payloadToStore, null, 2));
-    const contentBase64 = bytesToBase64(encodedBytes);
-
-    const putRes = await fetch(apiUrl, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${cfg.token}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        message: `sync: update IQAP committee workspace (${new Date().toISOString()})`,
-        content: contentBase64,
-        branch: cfg.branch || "main",
-        ...(existingSha ? { sha: existingSha } : {})
-      })
-    });
-
-    if (!putRes.ok) {
-      const errBody = await putRes.text();
-      throw new Error(`HTTP ${putRes.status}: ${errBody.slice(0, 120)}`);
-    }
-
-    updateSyncStatusUI(
-      "ok",
-      `Saved to GitHub (${cfg.passcode ? "AES-256 Encrypted" : "Standard JSON"} · ${formatShortTime(new Date().toISOString())})`
-    );
   } catch (err) {
-    console.error("GitHub push error:", err);
-    updateSyncStatusUI("error", `GitHub Push failed: ${err.message}`);
+    console.warn("Firebase initialization error:", err);
+    updateSyncStatusUI("warning", "Local Mode (Firebase init error)");
   }
 }
 
@@ -1494,8 +1689,7 @@ function importWorkspaceJSON(file) {
       const parsed = JSON.parse(String(reader.result));
       let loaded = parsed;
       if (parsed.encrypted) {
-        const cfg = loadGitHubConfig();
-        const pass = cfg.passcode || window.prompt("This backup file is encrypted. Please enter the Committee Encryption Passcode:");
+        const pass = window.prompt("This backup file is encrypted. Please enter the Committee Encryption Passcode:");
         if (!pass) return;
         loaded = await decryptWorkspacePayload(parsed, pass);
       }
@@ -1703,64 +1897,71 @@ function initApp() {
     secDialog?.close();
   });
 
-  // GitHub Sync Dialog
-  const ghDialog = document.getElementById("github-sync-dialog");
-  const populateGhForm = () => {
-    const cfg = loadGitHubConfig();
-    document.getElementById("gh-owner").value = cfg.owner || "";
-    document.getElementById("gh-repo").value = cfg.repo || "";
-    document.getElementById("gh-branch").value = cfg.branch || "main";
-    document.getElementById("gh-path").value = cfg.path || "data/committee-workspace.json";
-    document.getElementById("gh-token").value = cfg.token || "";
-    document.getElementById("gh-passcode").value = cfg.passcode || "";
-    document.getElementById("gh-autosync").checked = Boolean(cfg.autoSync);
-  };
-
-  document.getElementById("btn-open-github-sync")?.addEventListener("click", () => {
-    populateGhForm();
-    ghDialog?.showModal();
+  // Firebase Auth & Real-Time Cloud Sync Dialog
+  const authDialog = document.getElementById("auth-sync-dialog");
+  document.getElementById("btn-open-auth")?.addEventListener("click", () => {
+    updateAuthModalUI(currentUser);
+    if (window.location.protocol === "file:") {
+      showAuthFeedback(
+        "Note: Browser security restricts Firebase Sign-In on local file:// URLs. Deploy to GitHub Pages (https://...) or run via http://localhost:8080 to sign in for live sync.",
+        false
+      );
+    }
+    authDialog?.showModal();
   });
 
-  const readGhForm = () => ({
-    owner: document.getElementById("gh-owner").value.trim(),
-    repo: document.getElementById("gh-repo").value.trim(),
-    branch: document.getElementById("gh-branch").value.trim() || "main",
-    path: document.getElementById("gh-path").value.trim() || "data/committee-workspace.json",
-    token: document.getElementById("gh-token").value.trim(),
-    passcode: document.getElementById("gh-passcode").value.trim(),
-    autoSync: document.getElementById("gh-autosync").checked
+  document.getElementById("btn-google-signin")?.addEventListener("click", async () => {
+    if (!firebaseAuth) {
+      showAuthFeedback("Firebase SDK is not loaded (check internet connection).", true);
+      return;
+    }
+    try {
+      showAuthFeedback("Opening Google Sign-In...");
+      const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      await firebaseAuth.signInWithPopup(provider);
+      showAuthFeedback("");
+    } catch (err) {
+      console.error("Google sign-in error:", err);
+      showAuthFeedback(`Google Sign-In failed: ${err.message}`, true);
+    }
   });
 
-  document.getElementById("btn-save-gh-config")?.addEventListener("click", () => {
-    const cfg = readGhForm();
-    saveGitHubConfig(cfg);
-    ghDialog?.close();
-    updateSyncStatusUI("ok", "GitHub sync settings saved.");
+  document.getElementById("email-signin-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!firebaseAuth) {
+      showAuthFeedback("Firebase SDK is not loaded (check internet connection).", true);
+      return;
+    }
+    const email = document.getElementById("auth-email")?.value.trim();
+    const password = document.getElementById("auth-password")?.value || "";
+    if (!email || !password) return;
+
+    try {
+      showAuthFeedback("Signing in...");
+      await firebaseAuth.signInWithEmailAndPassword(email, password);
+      showAuthFeedback("");
+      const pwInput = document.getElementById("auth-password");
+      if (pwInput) pwInput.value = "";
+    } catch (err) {
+      console.error("Email sign-in error:", err);
+      showAuthFeedback(`Sign-in failed: ${err.message}`, true);
+    }
   });
 
-  document.getElementById("btn-gh-pull-now")?.addEventListener("click", async () => {
-    const cfg = readGhForm();
-    saveGitHubConfig(cfg);
-    await pullFromGitHub(false);
-    ghDialog?.close();
+  document.getElementById("btn-cloud-seed-push")?.addEventListener("click", async () => {
+    await pushFullStateToFirestore();
   });
 
-  document.getElementById("btn-gh-push-now")?.addEventListener("click", async () => {
-    const cfg = readGhForm();
-    saveGitHubConfig(cfg);
-    await pushToGitHub();
-    ghDialog?.close();
+  document.getElementById("btn-signout")?.addEventListener("click", async () => {
+    if (!firebaseAuth) return;
+    stopFirestoreRealtimeSync();
+    await firebaseAuth.signOut();
+    showAuthFeedback("Signed out. App is now in Local Auto-Save mode.");
   });
 
-  document.getElementById("btn-quick-push")?.addEventListener("click", () => {
-    pushToGitHub();
-  });
-  document.getElementById("btn-quick-pull")?.addEventListener("click", () => {
-    pullFromGitHub(false);
-  });
-
-  // Start auto-sync timer if previously configured
-  setupAutoSyncTimer(loadGitHubConfig());
+  // Initialize Firebase Authentication & Firestore Real-Time Sync
+  initFirebase();
 }
 
 document.addEventListener("DOMContentLoaded", initApp);

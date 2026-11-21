@@ -1,11 +1,11 @@
 # 2026 IQAP Major Modifications — Committee Decision Support App
 
 ## 1. Overview
-- **Purpose**: A decision-support web application designed for the **Experimental Animation (EXAN) Curriculum Committee** at OCAD University to systematically dissect, assign, draft, and finalize responses for the **IQAP Major Modifications Proposal Brief (Co-op & Trimesterization)** under tight timelines and limited data conditions.
+- **Purpose**: A real-time collaborative decision-support web application designed for the **Experimental Animation (EXAN) Curriculum Committee** at OCAD University to systematically dissect, assign, draft, and finalize responses for the **IQAP Major Modifications Proposal Brief (Co-op & Trimesterization)** under tight timelines and limited data conditions.
 - **Design & Privacy Principles**:
   - **100% English UI** with a stark **OCAD U Black & White (Monochrome)** theme.
   - **Zero Personal Data (PII-Free)**: All examples, placeholders, and pre-populated consultation records use institutional role titles and department names only (no personal names).
-  - **Works Locally (`file://`) & on the Web (`https://`)**: Can be opened directly by double-clicking `index.html` in Finder/Explorer or hosted via GitHub Pages.
+  - **Real-Time Multi-User Sync (Firebase Firestore — Toronto, Canada)** + **Zero-Install Hosting (GitHub Pages)** + **Institutional File Storage (OCAD U OneDrive `Share with specific members`)**.
 
 ---
 
@@ -14,7 +14,7 @@
 The application covers all **13 items** across **3 sections**:
 - **Part B: Proposed Major Modification**: Items `1`, `2`, `3`
 - **Part C: Evaluation Criteria**: Items `4`, `5`, `6`, `7`, `8`, `9`, `10`, `11`
-- **Appendixes**: `Appendix A`, `Appendix B`
+- **Appendices**: `Appendix A`, `Appendix B`
 
 Each item uses its own question number (`N` = `1`..`11`, `A`, `B`) as the prefix across its workspace sections:
 
@@ -56,60 +56,43 @@ Located at the top dashboard bar next to `Quick Jump:`:
 
 ---
 
-## 3. Step-by-Step Deployment, Security & Sharing Guide (Next Session Checklist)
+## 3. Real-Time Collaboration Architecture (GitHub Pages + Firebase Firestore)
 
-### Step 1. Create a GitHub Repository
-1. Sign in to [github.com](https://github.com) and click **`+`** ➔ **`New repository`**.
-2. Set **Repository name** to `2026decision_app`.
-3. Leave "Add a README file" unchecked and click **`Create repository`**.
-
-### Step 2. Push Local Repository to GitHub
-Run the following commands in Terminal (replace `<your-github-username>` with your GitHub account username):
-```bash
-git -C "/Users/jiharu/Frodo/OCADU/code_work/2026decision_app" remote add origin https://github.com/<your-github-username>/2026decision_app.git
-git -C "/Users/jiharu/Frodo/OCADU/code_work/2026decision_app" push -u origin main
-```
-*(Note: The `resource/` folder containing the source PDF is excluded via `.gitignore` and will never be uploaded to GitHub.)*
-
-### Step 3. Enable GitHub Pages (Web App Link)
-1. In your GitHub repository, go to **`Settings`** ➔ **`Pages`** (left sidebar).
-2. Under **Build and deployment**, set **Branch** to **`main`** (`/ (root)`) and click **`Save`**.
-3. Wait ~1 minute for the live URL: `https://<your-github-username>.github.io/2026decision_app/`.
-
-### Step 4. Generate a Scoped GitHub Access Key (Fine-Grained PAT)
-1. On GitHub, go to your profile icon (top right) ➔ **`Settings`** ➔ **`Developer settings`** (bottom left).
-2. Click **`Personal access tokens`** ➔ **`Fine-grained tokens`** ➔ **`Generate new token`**.
-3. Configure the token:
-   - **Token name**: `EXAN-Committee-App`
-   - **Expiration**: Set to match the committee review period (e.g., 30 or 90 days)
-   - **Repository access**: Select **`Only select repositories`** ➔ choose **`2026decision_app`** only
-   - **Permissions** ➔ **Repository permissions** ➔ **`Contents`**: Set to **`Read and write`**
-4. Click **`Generate token`** and copy the generated `github_pat_...` key.
-
-### Step 5. Configure Encryption & Share via OCAD U OneDrive ("Share with specific members")
-1. Open the web app and click **`⚙ GitHub Sync Setup`**.
-2. Enter:
-   - **GitHub Owner**: `<your-github-username>`
-   - **Repository Name**: `2026decision_app`
-   - **GitHub Access Key**: The `github_pat_...` token from Step 4
-   - **Committee Encryption Passcode**: A shared password for the committee (enables client-side WebCrypto `AES-256-GCM` encryption on `data/committee-workspace.json`)
-3. Click **`↑ Push to GitHub Now`** to initialize the encrypted workspace file in the repository.
-4. *(Optional extra privacy)*: Click **`■ Security & Template Mode`** ➔ **`○ Clear to Blank Template Mode`** if you want the initial HTML shell to display blank placeholders until a committee member clicks `↓ Pull`.
-5. Inside your institutional **OCAD U OneDrive (`Share with specific members`)** folder:
-   - Store all confidential supporting files (original PDF brief, Registrar sequencing charts, spreadsheets) and paste the folder link into the app's **Shared OneDrive Folder** field.
-   - Share the **Web App URL**, **GitHub Access Key**, and **Committee Encryption Passcode** with your fellow committee members inside the restricted OneDrive folder.
+1. **Per-Item Real-Time Sync (`workspaces/exan-2026/items/{item.id}`)**:
+   - Each of the 13 items is stored as an independent Firestore document, preventing overwrite conflicts when all 4 committee members work simultaneously on different questions.
+   - Edits sync across signed-in members in ~0.5 seconds without interrupting cursor focus in other items.
+2. **Server-Side 4-Member Access Control (Firestore Security Rules)**:
+   - Hosted in **Toronto, Canada (`northamerica-northeast2`)** under Firebase project `exan2026-decisionapp`.
+   - Supports both **Google Sign-In** and **Email/Password Sign-In**.
+   - Firestore Security Rules restrict all reads/writes strictly to the 4 authorized committee email addresses:
+   ```javascript
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /workspaces/exan-2026/{document=**} {
+         allow read, write: if request.auth != null
+           && request.auth.token.email in [
+             'member1@example.com',
+             'member2@example.com',
+             'member3@example.com',
+             'member4@example.com'
+           ];
+       }
+     }
+   }
+   ```
+3. **GitHub Pages Deployment Checklist**:
+   - Push this repository to GitHub (`git remote add origin ...` & `git push -u origin main`). Note: `resource/` is git-ignored so raw PDFs are never uploaded.
+   - Enable **GitHub Pages** (`Settings` ➔ `Pages` ➔ Branch `main`).
+   - Add `<your-github-username>.github.io` to Firebase Console ➔ **Authentication** ➔ **Settings** ➔ **Authorized domains**.
+   - Keep confidential PDF/Excel attachments inside **OCAD U OneDrive (`Share with specific members`)** and paste their links into the app.
 
 ---
 
-## 4. Repository Structure & Upcoming Tasks
-- `index.html`: Application shell, dashboard filters, GitHub sync modal, and security modal
-- `styles.css`: Monochrome Black & White theme, Orange/Blue Quick Jump indicators, responsive container-query tables, and print styles
-- `brief-data.js`: Pre-extracted questions, anonymized CLT pre-filled text, and initial Gray Zone sub-items for Items 1–11 and Appendices A–B
-- `app.js`: State management, Gray Zone dissection, rich text/table editor, `Complete` checkbox & Quick Jump state sync, WebCrypto `AES-256-GCM` encryption, and GitHub API sync
+## 4. Repository Structure
+- `index.html`: Application shell, dashboard filters, Firebase Sign-In modal, security modal, and reference input modal
+- `styles.css`: Monochrome Black & White theme, Grey/Orange/Blue Quick Jump indicators, responsive tables, and print styles
+- `firebase-config.js`: Firebase Web App configuration for `exan2026-decisionapp`
+- `brief-data.js`: Pre-extracted questions, anonymized CLT pre-filled text, item-specific reference buttons, and initial Gray Zone sub-items for Items 1–11 and Appendices A–B
+- `app.js`: State management, per-item real-time Firestore sync, Gray Zone dissection, rich text/table editor, `Complete` checkbox & Quick Jump sync, and JSON backup/restore
 - `.gitignore`: Excludes `resource/` and local system files from Git tracking
-
-### Next Session To-Do List
-- [ ] Connect local Git repository to remote GitHub account (`git remote add origin` & `git push`)
-- [ ] Enable GitHub Pages and verify live web URL
-- [ ] Generate Fine-grained Personal Access Token and test `↑ Push` / `↓ Pull` with AES-256-GCM encryption
-- [ ] Connect OCAD U OneDrive (`Share with specific members`) folder and verify end-to-end sharing workflow for committee members
