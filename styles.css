@@ -132,16 +132,15 @@ mark {
   gap: 0.75rem;
 }
 
-.ocad-badge {
-  background: var(--accent-primary);
-  color: var(--accent-primary-fg);
-  font-weight: 900;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  padding: 0.4rem 0.6rem;
-  border: 2px solid var(--accent-primary);
-  line-height: 1.1;
-  text-transform: uppercase;
+.ocad-logo-img {
+  display: block;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 2px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 .brand-title {
