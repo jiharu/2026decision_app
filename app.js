@@ -1999,10 +1999,6 @@ function initApp() {
     }
   });
 
-  document.getElementById("btn-cloud-seed-push")?.addEventListener("click", async () => {
-    await pushFullStateToFirestore();
-  });
-
   document.getElementById("btn-signout")?.addEventListener("click", async () => {
     if (!firebaseAuth) return;
     stopFirestoreRealtimeSync();
