@@ -65,8 +65,8 @@ Located at the top dashboard bar next to `Quick Jump:`:
    - Edits sync across signed-in members in ~0.5 seconds without interrupting cursor focus in other items.
 2. **Server-Side 4-Member Access Control (Firestore Security Rules)**:
    - Hosted in **Toronto, Canada (`northamerica-northeast2`)** under Firebase project `exan2026-decisionapp`.
-   - Supports both **Google Sign-In** and **Email/Password Sign-In**.
-   - Firestore Security Rules restrict all reads/writes strictly to the 4 authorized committee email addresses:
+   - Supports **self-service first-time `@ocadu.ca` password setup** (`First-Time Setup: Create Password`), returning `Sign In`, `Forgot Password?` email reset, and optional Google Sign-In.
+   - Firestore Security Rules restrict all reads/writes strictly to the 4 authorized committee `@ocadu.ca` email addresses (stored privately in Firebase Console, never committed to GitHub):
    ```javascript
    rules_version = '2';
    service cloud.firestore {
@@ -74,27 +74,27 @@ Located at the top dashboard bar next to `Quick Jump:`:
        match /workspaces/exan-2026/{document=**} {
          allow read, write: if request.auth != null
            && request.auth.token.email in [
-             'member1@example.com',
-             'member2@example.com',
-             'member3@example.com',
-             'member4@example.com'
+             'member1@ocadu.ca',
+             'member2@ocadu.ca',
+             'member3@ocadu.ca',
+             'member4@ocadu.ca'
            ];
        }
      }
    }
    ```
-3. **GitHub Pages Deployment Checklist**:
-   - Push this repository to GitHub (`git remote add origin ...` & `git push -u origin main`). Note: `resource/` is git-ignored so raw PDFs are never uploaded.
-   - Enable **GitHub Pages** (`Settings` ➔ `Pages` ➔ Branch `main`).
-   - Add `<your-github-username>.github.io` to Firebase Console ➔ **Authentication** ➔ **Settings** ➔ **Authorized domains**.
-   - Keep confidential PDF/Excel attachments inside **OCAD U OneDrive (`Share with specific members`)** and paste their links into the app.
+3. **Deployment & Sharing Status (Completed)**:
+   - Deployed live on **GitHub Pages** (`https://jiharu.github.io/2026decision_app/`) with `jiharu.github.io` registered in Firebase **Authorized domains**.
+   - Real-time Firestore sync verified (`Live Sync · 13 items synced`).
+   - A 1-page English colleague onboarding handout (`resource/EXAN_Decision_App_Quick_Guide.pdf`, git-ignored) is ready to share alongside the institutional **OCAD U OneDrive (`Share with specific members`)** folder.
 
 ---
 
 ## 4. Repository Structure
-- `index.html`: Application shell, dashboard filters, Firebase Sign-In modal, security modal, and reference input modal
-- `styles.css`: Monochrome Black & White theme, Grey/Orange/Blue Quick Jump indicators, responsive tables, and print styles
+- `index.html`: Application shell, official OCAD U logo/favicon, dashboard filters, Firebase Sign-In modal, security modal, and reference input modal
+- `styles.css`: Monochrome Black & White theme (including automatic white OCAD U logo rendering in dark mode), Grey/Orange/Blue Quick Jump indicators, responsive tables, and print styles
+- `assets/ocadu-logo.png`: Official OCAD University monochrome logo used in the app header and browser favicon
 - `firebase-config.js`: Firebase Web App configuration for `exan2026-decisionapp`
 - `brief-data.js`: Pre-extracted questions, anonymized CLT pre-filled text, item-specific reference buttons, and initial Gray Zone sub-items for Items 1–11 and Appendices A–B
-- `app.js`: State management, per-item real-time Firestore sync, Gray Zone dissection, rich text/table editor, `Complete` checkbox & Quick Jump sync, and JSON backup/restore
-- `.gitignore`: Excludes `resource/` and local system files from Git tracking
+- `app.js`: State management, per-item real-time Firestore sync, self-service password creation/reset, Gray Zone dissection, rich text/table editor, `Complete` checkbox & Quick Jump sync, and JSON backup/restore
+- `.gitignore`: Excludes `resource/` (source PDF brief & 1-page colleague guide PDF) and local system files from Git tracking
