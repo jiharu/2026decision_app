@@ -1668,47 +1668,11 @@ function initFirebase() {
 }
 
 // ============================================================================
-// Export / Import JSON & Blank Question Mode (Security Option)
+// Template Mode (Pre-Extracted Brief vs. Blank Template)
 // ============================================================================
-function exportWorkspaceJSON() {
-  const dataStr = JSON.stringify(appState, null, 2);
-  const blob = new Blob([dataStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const dateTag = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `EXAN_IQAP_Decision_Workspace_${dateTag}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importWorkspaceJSON(file) {
-  const reader = new FileReader();
-  reader.onload = async () => {
-    try {
-      const parsed = JSON.parse(String(reader.result));
-      let loaded = parsed;
-      if (parsed.encrypted) {
-        const pass = window.prompt("This backup file is encrypted. Please enter the Committee Encryption Passcode:");
-        if (!pass) return;
-        loaded = await decryptWorkspacePayload(parsed, pass);
-      }
-      if (loaded && Array.isArray(loaded.items)) {
-        appState = normalizeLoadedState(loaded);
-        saveStateLocally("Restored workspace from JSON file");
-        renderMetadataFields();
-        renderItemsList();
-      }
-    } catch (err) {
-      updateSyncStatusUI("error", `Failed to import file: ${err.message}`);
-    }
-  };
-  reader.readAsText(file);
-}
-
 function stripQuestionsToBlankTemplate() {
   for (const item of appState.items) {
-    item.questionHtml = `<p><strong>${item.code}.</strong> [Enter the question prompt here or import from a saved JSON workspace file]</p>`;
+    item.questionHtml = `<p><strong>${item.code}.</strong> [Enter the question prompt here]</p>`;
     item.existingAnswerHtml = "";
     item.grayZoneSubItems = [
       {
@@ -1863,16 +1827,6 @@ function initApp() {
       d.open = false;
     });
     updateSyncStatusUI("ok", "Collapsed all items");
-  });
-
-  // Export / Import JSON buttons
-  document.getElementById("btn-export-json")?.addEventListener("click", exportWorkspaceJSON);
-  const importInput = document.getElementById("input-import-json");
-  document.getElementById("btn-import-json")?.addEventListener("click", () => importInput?.click());
-  importInput?.addEventListener("change", () => {
-    const file = importInput.files?.[0];
-    if (file) importWorkspaceJSON(file);
-    importInput.value = "";
   });
 
   // Print / Export PDF Report

@@ -96,5 +96,5 @@ Located at the top dashboard bar next to `Quick Jump:`:
 - `assets/ocadu-logo.png`: Official OCAD University monochrome logo used in the app header and browser favicon
 - `firebase-config.js`: Firebase Web App configuration for `exan2026-decisionapp`
 - `brief-data.js`: Pre-extracted questions, anonymized CLT pre-filled text, item-specific reference buttons, and initial Gray Zone sub-items for Items 1–11 and Appendices A–B
-- `app.js`: State management, per-item real-time Firestore sync, self-service password creation/reset, Gray Zone dissection, rich text/table editor, `Complete` checkbox & Quick Jump sync, and JSON backup/restore
+- `app.js`: State management, per-item real-time Firestore sync, self-service password creation/reset, Gray Zone dissection, rich text/table editor, `Complete` checkbox & Quick Jump sync, and Print/PDF report export
 - `.gitignore`: Excludes `resource/` (source PDF brief & 1-page colleague guide PDF) and local system files from Git tracking
