@@ -173,11 +173,31 @@ let firebaseAuth = null;
 let firebaseDb = null;
 let currentUser = null;
 let cloudSyncActive = false;
+let metaSyncReady = false;
+let itemsSyncReady = false;
+let isFlushingCloudSync = false;
+let pendingCloudResync = false;
 let unsubscribeMetaListener = null;
 let unsubscribeItemsListener = null;
 let cloudDiffSyncTimer = null;
 const lastSyncedItemJson = new Map();
 let lastSyncedMetaJson = "";
+
+function getItemById(itemId) {
+  return appState.items.find((i) => i.id === itemId) || null;
+}
+
+function getSubItemById(itemId, subId) {
+  const item = getItemById(itemId);
+  if (!item || !Array.isArray(item.grayZoneSubItems)) return null;
+  return item.grayZoneSubItems.find((s) => s.id === subId) || null;
+}
+
+function serializeComparableMeta(meta) {
+  if (!meta) return "";
+  const { lastUpdated, ...rest } = meta;
+  return JSON.stringify(rest);
+}
 
 function cloneDefaultState() {
   return {
@@ -186,32 +206,38 @@ function cloneDefaultState() {
   };
 }
 
-function normalizeLoadedState(state) {
-  if (!state || !Array.isArray(state.items)) return state;
-  for (const item of state.items) {
-    if (item.sectionId === "part1") {
-      item.sectionLabel = "Part B: Proposed Major Modification";
-    } else if (item.sectionId === "part2") {
-      item.sectionLabel = "Part C: Evaluation Criteria";
+function normalizeSingleItem(item) {
+  if (!item) return item;
+  if (item.sectionId === "part1") {
+    item.sectionLabel = "Part B: Proposed Major Modification";
+  } else if (item.sectionId === "part2") {
+    item.sectionLabel = "Part C: Evaluation Criteria";
+  }
+  if (["4", "6", "7", "8"].includes(String(item.code))) {
+    item.noResponseNeeded = true;
+    if (!item.status || item.status === "not_started") {
+      item.status = "no_response_needed";
     }
-    if (["4", "6", "7", "8"].includes(String(item.code))) {
-      item.noResponseNeeded = true;
-      if (!item.status || item.status === "not_started") {
-        item.status = "no_response_needed";
-      }
-    }
-    const defItem = INITIAL_ITEMS.find((d) => d.id === item.id);
-    if (defItem && Array.isArray(defItem.questionLinks)) {
-      if (!Array.isArray(item.questionLinks) || item.questionLinks.length === 0) {
-        item.questionLinks = structuredClone(defItem.questionLinks);
-      } else {
-        for (const defLink of defItem.questionLinks) {
-          if (!item.questionLinks.some((l) => l.id === defLink.id)) {
-            item.questionLinks.push(structuredClone(defLink));
-          }
+  }
+  const defItem = INITIAL_ITEMS.find((d) => d.id === item.id);
+  if (defItem && Array.isArray(defItem.questionLinks)) {
+    if (!Array.isArray(item.questionLinks) || item.questionLinks.length === 0) {
+      item.questionLinks = structuredClone(defItem.questionLinks);
+    } else {
+      for (const defLink of defItem.questionLinks) {
+        if (!item.questionLinks.some((l) => l.id === defLink.id)) {
+          item.questionLinks.push(structuredClone(defLink));
         }
       }
     }
+  }
+  return item;
+}
+
+function normalizeLoadedState(state) {
+  if (!state || !Array.isArray(state.items)) return state;
+  for (const item of state.items) {
+    normalizeSingleItem(item);
   }
   return state;
 }
@@ -668,15 +694,16 @@ function renderItemsList() {
 }
 
 function buildItemCardDOM(item) {
+  const itemId = item.id;
   const card = document.createElement("article");
   card.className = "item-card";
-  card.id = `card-${item.id}`;
+  card.id = `card-${itemId}`;
 
   // Use native <details> per modern-web-guidance (search-hidden-content)
   // so Find-in-page (Cmd+F) automatically reveals collapsed items
   const details = document.createElement("details");
   details.className = "item-card-details";
-  details.open = cardOpenState[item.id] ?? true;
+  details.open = cardOpenState[itemId] ?? true;
 
   const summary = document.createElement("summary");
 
@@ -693,6 +720,7 @@ function buildItemCardDOM(item) {
 
   const titleEl = document.createElement("h2");
   titleEl.className = "item-short-title";
+  titleEl.dataset.syncTitle = "true";
   titleEl.textContent = item.shortTitle;
 
   headerLeft.append(codeBadge, titleEl, secTag);
@@ -703,6 +731,7 @@ function buildItemCardDOM(item) {
   // Status selector
   const statusSelect = document.createElement("select");
   statusSelect.className = "auto-fit-select";
+  statusSelect.dataset.syncField = "status";
   statusSelect.setAttribute("aria-label", `Select status for ${item.code}`);
   for (const opt of STATUS_OPTIONS) {
     const o = document.createElement("option");
@@ -713,14 +742,17 @@ function buildItemCardDOM(item) {
   }
   statusSelect.addEventListener("click", (e) => e.stopPropagation());
   statusSelect.addEventListener("change", (e) => {
-    item.status = e.target.value;
-    item.noResponseNeeded = e.target.value === "no_response_needed";
+    const liveItem = getItemById(itemId);
+    if (!liveItem) return;
+    liveItem.status = e.target.value;
+    liveItem.noResponseNeeded = e.target.value === "no_response_needed";
     saveStateLocally();
     updateQuickJumpPillsState();
   });
 
   const subCountBadge = document.createElement("span");
   subCountBadge.className = "status-badge status-not-started";
+  subCountBadge.dataset.syncSubcount = "true";
   subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length} sub-item(s)`;
 
   const toggleHint = document.createElement("span");
@@ -729,7 +761,7 @@ function buildItemCardDOM(item) {
   toggleHint.textContent = details.open ? "▾ Collapse" : "▸ Expand";
 
   details.addEventListener("toggle", () => {
-    cardOpenState[item.id] = details.open;
+    cardOpenState[itemId] = details.open;
     toggleHint.textContent = details.open ? "▾ Collapse" : "▸ Expand";
   });
 
@@ -757,10 +789,10 @@ function buildItemCardDOM(item) {
   const qEditBtn = document.createElement("button");
   qEditBtn.type = "button";
   qEditBtn.className = "btn btn-sm no-print";
-  const isEditingQ = Boolean(questionEditMode[item.id]);
+  const isEditingQ = Boolean(questionEditMode[itemId]);
   qEditBtn.textContent = isEditingQ ? "Done Editing Question" : "Edit Question / Title";
   qEditBtn.addEventListener("click", () => {
-    questionEditMode[item.id] = !questionEditMode[item.id];
+    questionEditMode[itemId] = !questionEditMode[itemId];
     renderItemsList();
   });
 
@@ -773,30 +805,37 @@ function buildItemCardDOM(item) {
     const titleInput = document.createElement("input");
     titleInput.type = "text";
     titleInput.className = "auto-fit-input";
+    titleInput.dataset.syncField = "shortTitle";
     titleInput.style.width = "100%";
     titleInput.style.maxInlineSize = "100%";
     titleInput.value = item.shortTitle;
     titleInput.placeholder = "Item summary title";
     titleInput.addEventListener("input", () => {
-      item.shortTitle = titleInput.value;
-      titleEl.textContent = item.shortTitle;
+      const liveItem = getItemById(itemId);
+      if (!liveItem) return;
+      liveItem.shortTitle = titleInput.value;
+      titleEl.textContent = liveItem.shortTitle;
       saveStateLocally();
     });
     titleInputWrap.appendChild(titleInput);
     qBlock.appendChild(titleInputWrap);
 
-    const { wrapper: qEditor } = createRichEditorWidget({
+    const { wrapper: qEditor, editor: qEditorEl } = createRichEditorWidget({
       initialHtml: item.questionHtml,
       placeholder: `Enter the question or prompt for Item ${num}...`,
       onChange: (html) => {
-        item.questionHtml = html;
+        const liveItem = getItemById(itemId);
+        if (!liveItem) return;
+        liveItem.questionHtml = html;
         saveStateLocally();
       }
     });
+    qEditorEl.dataset.syncField = "questionHtml";
     qBlock.appendChild(qEditor);
   } else {
     const qContent = document.createElement("div");
     qContent.className = "question-display";
+    qContent.dataset.syncDisplay = "questionHtml";
     safeSetHTML(qContent, item.questionHtml);
     qBlock.appendChild(qContent);
   }
@@ -810,26 +849,29 @@ function buildItemCardDOM(item) {
   // -------------------------------------------------------------------------
   const exDetails = document.createElement("details");
   exDetails.className = "block-existing";
-  exDetails.open = existingOpenState[item.id] ?? false;
+  exDetails.open = existingOpenState[itemId] ?? false;
 
   const exSummary = document.createElement("summary");
   exSummary.innerHTML = `<span>${num}-1. Existing / Pre-filled Answer Input (Pre-populated by CLT / Administration — click to expand or edit)</span><span style="font-size:0.76rem;color:var(--text-muted);">Expand / Collapse ▾</span>`;
 
   exDetails.addEventListener("toggle", () => {
-    existingOpenState[item.id] = exDetails.open;
+    existingOpenState[itemId] = exDetails.open;
   });
 
   const exContent = document.createElement("div");
   exContent.className = "block-existing-content";
 
-  const { wrapper: exEditor } = createRichEditorWidget({
+  const { wrapper: exEditor, editor: exEditorEl } = createRichEditorWidget({
     initialHtml: item.existingAnswerHtml,
     placeholder: `${num}-1. Enter or edit the existing pre-filled answer text or tables...`,
     onChange: (html) => {
-      item.existingAnswerHtml = html;
+      const liveItem = getItemById(itemId);
+      if (!liveItem) return;
+      liveItem.existingAnswerHtml = html;
       saveStateLocally();
     }
   });
+  exEditorEl.dataset.syncField = "existingAnswerHtml";
   exContent.appendChild(exEditor);
   exDetails.append(exSummary, exContent);
 
@@ -851,7 +893,9 @@ function buildItemCardDOM(item) {
   addSubBtn.className = "btn btn-primary no-print";
   addSubBtn.textContent = "+ Add Dissected Sub-item";
   addSubBtn.addEventListener("click", () => {
-    item.grayZoneSubItems.push({
+    const liveItem = getItemById(itemId);
+    if (!liveItem) return;
+    liveItem.grayZoneSubItems.push({
       id: `gz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       prompt: "",
       primaryAssignee: "",
@@ -889,6 +933,7 @@ function buildItemCardDOM(item) {
 }
 
 function buildQuestionLinksBarDOM(item, num) {
+  const itemId = item.id;
   const bar = document.createElement("div");
   bar.className = "question-links-bar";
 
@@ -898,6 +943,7 @@ function buildQuestionLinksBarDOM(item, num) {
   bar.appendChild(label);
 
   for (const qlink of item.questionLinks) {
+    const qlinkId = qlink.id;
     const group = document.createElement("div");
     group.className = "qlink-group";
 
@@ -914,7 +960,11 @@ function buildQuestionLinksBarDOM(item, num) {
       ? `Click to view or edit ${qlink.label}`
       : `Click to add link or input for ${qlink.label}`;
     btn.addEventListener("click", () => {
-      openQuestionLinkDialog(item, qlink, num);
+      const liveItem = getItemById(itemId);
+      const liveQlink = liveItem?.questionLinks?.find((l) => l.id === qlinkId);
+      if (liveItem && liveQlink) {
+        openQuestionLinkDialog(liveItem, liveQlink, num);
+      }
     });
     group.appendChild(btn);
 
@@ -936,6 +986,10 @@ function buildQuestionLinksBarDOM(item, num) {
 }
 
 function openQuestionLinkDialog(item, qlink, num) {
+  const itemId = item.id;
+  const qlinkId = qlink.id;
+  const getLiveQlink = () => getItemById(itemId)?.questionLinks?.find((l) => l.id === qlinkId) || null;
+
   const dialog = document.getElementById("question-link-dialog");
   if (!dialog) return;
 
@@ -951,14 +1005,17 @@ function openQuestionLinkDialog(item, qlink, num) {
     openUrlBtn.disabled = !urlInput.value.trim();
 
     urlInput.oninput = () => {
-      qlink.url = urlInput.value.trim();
-      openUrlBtn.disabled = !qlink.url;
+      const liveQlink = getLiveQlink();
+      if (!liveQlink) return;
+      liveQlink.url = urlInput.value.trim();
+      openUrlBtn.disabled = !liveQlink.url;
       saveStateLocally();
     };
 
     openUrlBtn.onclick = () => {
-      if (qlink.url) {
-        window.open(qlink.url, "_blank", "noopener,noreferrer");
+      const liveQlink = getLiveQlink();
+      if (liveQlink?.url) {
+        window.open(liveQlink.url, "_blank", "noopener,noreferrer");
       }
     };
   }
@@ -986,7 +1043,9 @@ function openQuestionLinkDialog(item, qlink, num) {
       initialHtml: qlink.notesHtml || "",
       placeholder: `Paste or enter content, notes, or tables for "${qlink.label}" here...`,
       onChange: (html) => {
-        qlink.notesHtml = html;
+        const liveQlink = getLiveQlink();
+        if (!liveQlink) return;
+        liveQlink.notesHtml = html;
         saveStateLocally();
       }
     });
@@ -1002,9 +1061,12 @@ function openQuestionLinkDialog(item, qlink, num) {
 }
 
 function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
+  const itemId = item.id;
+  const subId = sub.id;
   const num = getItemPrefix(item);
   const subCard = document.createElement("div");
   subCard.className = "subitem-card";
+  subCard.dataset.subId = subId;
 
   // Top bar: Sub-item index + Dissected Prompt Input + Delete button
   const subTop = document.createElement("div");
@@ -1024,10 +1086,11 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   delBtn.disabled = item.grayZoneSubItems.length <= 1;
   delBtn.title = item.grayZoneSubItems.length <= 1 ? "At least one Gray Zone sub-item is required" : "Remove this dissected sub-item";
   delBtn.addEventListener("click", () => {
-    if (item.grayZoneSubItems.length <= 1) return;
-    item.grayZoneSubItems = item.grayZoneSubItems.filter((s) => s.id !== sub.id);
+    const liveItem = getItemById(itemId);
+    if (!liveItem || liveItem.grayZoneSubItems.length <= 1) return;
+    liveItem.grayZoneSubItems = liveItem.grayZoneSubItems.filter((s) => s.id !== subId);
     if (subCountBadge) {
-      subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length} sub-item(s)`;
+      subCountBadge.textContent = `Gray Zone: ${liveItem.grayZoneSubItems.length} sub-item(s)`;
     }
     saveStateLocally();
     renderItemsList();
@@ -1037,10 +1100,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const promptTextarea = document.createElement("textarea");
   promptTextarea.className = "auto-fit-textarea";
+  promptTextarea.dataset.syncSubField = "prompt";
   promptTextarea.placeholder = "Enter the dissected Gray Zone prompt, instruction, or specific committee question to address...";
   promptTextarea.value = sub.prompt || "";
   promptTextarea.addEventListener("input", () => {
-    sub.prompt = promptTextarea.value;
+    const liveSub = getSubItemById(itemId, subId);
+    if (!liveSub) return;
+    liveSub.prompt = promptTextarea.value;
     saveStateLocally();
   });
 
@@ -1052,7 +1118,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const assigneeLabel = document.createElement("label");
   assigneeLabel.className = "assignee-label";
-  const assigneeInputId = `primary-assignee-${sub.id}`;
+  const assigneeInputId = `primary-assignee-${subId}`;
   assigneeLabel.htmlFor = assigneeInputId;
   assigneeLabel.textContent = `${num}-2-1. Who Can Answer (Primary Responder / Assignee):`;
 
@@ -1060,10 +1126,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   assigneeInput.id = assigneeInputId;
   assigneeInput.type = "text";
   assigneeInput.className = "auto-fit-input";
+  assigneeInput.dataset.syncSubField = "primaryAssignee";
   assigneeInput.placeholder = "e.g., Program Chair, Curriculum Committee, Faculty Representative, CEAD, Registrar, CLT...";
   assigneeInput.value = sub.primaryAssignee || "";
   assigneeInput.addEventListener("input", () => {
-    sub.primaryAssignee = assigneeInput.value;
+    const liveSub = getSubItemById(itemId, subId);
+    if (!liveSub) return;
+    liveSub.primaryAssignee = assigneeInput.value;
     saveStateLocally();
   });
 
@@ -1090,10 +1159,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
     initialHtml: sub.draftHtml,
     placeholder: `${num}-2-1-1. Enter the draft response here (supports formatted text and tables)...`,
     onChange: (html) => {
-      sub.draftHtml = html;
+      const liveSub = getSubItemById(itemId, subId);
+      if (!liveSub) return;
+      liveSub.draftHtml = html;
       saveStateLocally();
     }
   });
+  draftEditorEl.dataset.syncSubField = "draftHtml";
 
   draftBox.append(draftHeader, draftEditorWidget);
 
@@ -1111,7 +1183,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   optLabelWrap.style.gap = "0.5rem";
 
   const optTitle = document.createElement("label");
-  const optInputId = `opt-assignee-${sub.id}`;
+  const optInputId = `opt-assignee-${subId}`;
   optTitle.htmlFor = optInputId;
   optTitle.className = "response-box-title";
   optTitle.textContent = `${num}-2-2. Optional Responder (Who else wants to contribute / comment):`;
@@ -1120,24 +1192,30 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   optInput.id = optInputId;
   optInput.type = "text";
   optInput.className = "auto-fit-input";
+  optInput.dataset.syncSubField = "optionalAssignee";
   optInput.placeholder = "e.g., Faculty Member, Curriculum Committee, Advisor (free text)";
   optInput.value = sub.optionalAssignee || "";
   optInput.addEventListener("input", () => {
-    sub.optionalAssignee = optInput.value;
+    const liveSub = getSubItemById(itemId, subId);
+    if (!liveSub) return;
+    liveSub.optionalAssignee = optInput.value;
     saveStateLocally();
   });
 
   optLabelWrap.append(optTitle, optInput);
   optHeader.appendChild(optLabelWrap);
 
-  const { wrapper: optEditorWidget } = createRichEditorWidget({
+  const { wrapper: optEditorWidget, editor: optEditorEl } = createRichEditorWidget({
     initialHtml: sub.optionalHtml,
     placeholder: `${num}-2-2. Enter optional response, additional perspective, or supporting tables...`,
     onChange: (html) => {
-      sub.optionalHtml = html;
+      const liveSub = getSubItemById(itemId, subId);
+      if (!liveSub) return;
+      liveSub.optionalHtml = html;
       saveStateLocally();
     }
   });
+  optEditorEl.dataset.syncSubField = "optionalHtml";
 
   optBox.append(optHeader, optEditorWidget);
 
@@ -1160,10 +1238,13 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 
   const completeCheckbox = document.createElement("input");
   completeCheckbox.type = "checkbox";
+  completeCheckbox.dataset.syncSubField = "isComplete";
   completeCheckbox.checked = Boolean(sub.isComplete);
   completeCheckbox.addEventListener("change", () => {
-    sub.isComplete = completeCheckbox.checked;
-    completeLabel.classList.toggle("checked", Boolean(sub.isComplete));
+    const liveSub = getSubItemById(itemId, subId);
+    if (!liveSub) return;
+    liveSub.isComplete = completeCheckbox.checked;
+    completeLabel.classList.toggle("checked", Boolean(liveSub.isComplete));
     saveStateLocally();
     updateQuickJumpPillsState();
   });
@@ -1172,15 +1253,18 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
   completeText.textContent = "Complete";
   completeLabel.append(completeCheckbox, completeText);
 
-  const { wrapper: finalEditorWidget } = createRichEditorWidget({
+  const { wrapper: finalEditorWidget, editor: finalEditorEl } = createRichEditorWidget({
     initialHtml: sub.finalHtml,
     placeholder: `${num}-2-1-2. Enter the finalized response here (supports formatted text and tables)...`,
     onChange: (html) => {
-      sub.finalHtml = html;
+      const liveSub = getSubItemById(itemId, subId);
+      if (!liveSub) return;
+      liveSub.finalHtml = html;
       saveStateLocally();
       updateQuickJumpPillsState();
     }
   });
+  finalEditorEl.dataset.syncSubField = "finalHtml";
 
   finalHeader.append(finalTitle, completeLabel);
   finalBox.append(finalHeader, finalEditorWidget);
@@ -1193,6 +1277,7 @@ function buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge) {
 // N-3. Supporting Data & Attachments (OneDrive Links + Local File Upload)
 // ============================================================================
 function buildAttachmentsBlockDOM(item) {
+  const itemId = item.id;
   const num = getItemPrefix(item);
   const block = document.createElement("section");
   block.className = "block-attachments";
@@ -1213,8 +1298,9 @@ function buildAttachmentsBlockDOM(item) {
   list.className = "attachment-list";
 
   const renderChips = () => {
+    const liveItem = getItemById(itemId) || item;
     list.replaceChildren();
-    if (!item.attachments || item.attachments.length === 0) {
+    if (!liveItem.attachments || liveItem.attachments.length === 0) {
       const emptyNote = document.createElement("span");
       emptyNote.style.fontSize = "0.8rem";
       emptyNote.style.color = "var(--text-muted)";
@@ -1223,7 +1309,8 @@ function buildAttachmentsBlockDOM(item) {
       return;
     }
 
-    item.attachments.forEach((att) => {
+    liveItem.attachments.forEach((att) => {
+      const attId = att.id;
       const chip = document.createElement("div");
       chip.className = "attachment-chip";
 
@@ -1246,7 +1333,9 @@ function buildAttachmentsBlockDOM(item) {
       delBtn.textContent = "✕";
       delBtn.title = "Remove attachment";
       delBtn.addEventListener("click", () => {
-        item.attachments = item.attachments.filter((a) => a.id !== att.id);
+        const curItem = getItemById(itemId);
+        if (!curItem) return;
+        curItem.attachments = (curItem.attachments || []).filter((a) => a.id !== attId);
         saveStateLocally();
         renderChips();
       });
@@ -1277,10 +1366,13 @@ function buildAttachmentsBlockDOM(item) {
   addLinkBtn.className = "btn btn-sm btn-secondary";
   addLinkBtn.textContent = "+ Add Link";
   addLinkBtn.addEventListener("click", () => {
+    const curItem = getItemById(itemId);
+    if (!curItem) return;
     const title = titleInput.value.trim() || urlInput.value.trim();
     const url = urlInput.value.trim();
     if (!url) return;
-    item.attachments.push({
+    if (!Array.isArray(curItem.attachments)) curItem.attachments = [];
+    curItem.attachments.push({
       id: `att-${Date.now()}`,
       type: "link",
       title,
@@ -1313,7 +1405,10 @@ function buildAttachmentsBlockDOM(item) {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      item.attachments.push({
+      const curItem = getItemById(itemId);
+      if (!curItem) return;
+      if (!Array.isArray(curItem.attachments)) curItem.attachments = [];
+      curItem.attachments.push({
         id: `att-${Date.now()}`,
         type: "file",
         title: `${file.name} (${Math.round(file.size / 1024)}KB)`,
@@ -1394,10 +1489,217 @@ function stripCloudMetaFields(docData) {
 }
 
 function snapshotCurrentSyncHashes() {
-  lastSyncedMetaJson = JSON.stringify(appState.metadata);
+  lastSyncedMetaJson = serializeComparableMeta(appState.metadata);
   lastSyncedItemJson.clear();
   for (const item of appState.items) {
     lastSyncedItemJson.set(item.id, JSON.stringify(item));
+  }
+}
+
+function mergeRemoteItemWithLocalEdits(localItem, remoteItem, baseItem) {
+  if (!baseItem || !localItem) {
+    return { mergedItem: remoteItem, keptLocalChanges: false };
+  }
+
+  const merged = structuredClone(remoteItem);
+  let keptLocalChanges = false;
+
+  const scalarFields = ["shortTitle", "status", "noResponseNeeded", "questionHtml", "existingAnswerHtml"];
+  for (const field of scalarFields) {
+    if (localItem[field] !== baseItem[field] && localItem[field] !== remoteItem[field]) {
+      merged[field] = localItem[field];
+      keptLocalChanges = true;
+    }
+  }
+
+  // Merge questionLinks per-link so concurrent edits on different links/fields do not clobber each other
+  if (Array.isArray(merged.questionLinks) && Array.isArray(localItem.questionLinks) && Array.isArray(baseItem.questionLinks)) {
+    const baseLinks = new Map(baseItem.questionLinks.map((l) => [l.id, l]));
+    const localLinks = new Map(localItem.questionLinks.map((l) => [l.id, l]));
+    for (const rLink of merged.questionLinks) {
+      const bLink = baseLinks.get(rLink.id);
+      const lLink = localLinks.get(rLink.id);
+      if (bLink && lLink) {
+        for (const f of ["url", "notesHtml"]) {
+          if (lLink[f] !== bLink[f] && lLink[f] !== rLink[f]) {
+            rLink[f] = lLink[f];
+            keptLocalChanges = true;
+          }
+        }
+      }
+    }
+  }
+
+  // Merge attachments: keep locally added attachments not yet present in remote
+  if (Array.isArray(localItem.attachments) && Array.isArray(baseItem.attachments)) {
+    const baseAttIds = new Set(baseItem.attachments.map((a) => a.id));
+    const remoteAttIds = new Set((merged.attachments || []).map((a) => a.id));
+    for (const lAtt of localItem.attachments) {
+      if (!baseAttIds.has(lAtt.id) && !remoteAttIds.has(lAtt.id)) {
+        if (!Array.isArray(merged.attachments)) merged.attachments = [];
+        merged.attachments.push(structuredClone(lAtt));
+        keptLocalChanges = true;
+      }
+    }
+  }
+
+  // Merge Gray Zone sub-items per-field so two members can edit Draft & Optional of the SAME item concurrently
+  if (Array.isArray(merged.grayZoneSubItems) && Array.isArray(localItem.grayZoneSubItems) && Array.isArray(baseItem.grayZoneSubItems)) {
+    const baseSubs = new Map(baseItem.grayZoneSubItems.map((s) => [s.id, s]));
+    const localSubs = new Map(localItem.grayZoneSubItems.map((s) => [s.id, s]));
+    const subFields = [
+      "prompt",
+      "primaryAssignee",
+      "draftHtml",
+      "finalHtml",
+      "isComplete",
+      "optionalAssignee",
+      "optionalHtml"
+    ];
+
+    for (const rSub of merged.grayZoneSubItems) {
+      const bSub = baseSubs.get(rSub.id);
+      const lSub = localSubs.get(rSub.id);
+      if (bSub && lSub) {
+        for (const f of subFields) {
+          if (lSub[f] !== bSub[f] && lSub[f] !== rSub[f]) {
+            rSub[f] = lSub[f];
+            keptLocalChanges = true;
+          }
+        }
+      }
+    }
+
+    // Preserve any newly added local sub-item not yet synced to cloud
+    const mergedSubIds = new Set(merged.grayZoneSubItems.map((s) => s.id));
+    for (const lSub of localItem.grayZoneSubItems) {
+      if (!baseSubs.has(lSub.id) && !mergedSubIds.has(lSub.id)) {
+        merged.grayZoneSubItems.push(structuredClone(lSub));
+        keptLocalChanges = true;
+      }
+    }
+  }
+
+  return { mergedItem: merged, keptLocalChanges };
+}
+
+function isElementFocused(el) {
+  if (!el || !document.activeElement) return false;
+  return document.activeElement === el || el.contains(document.activeElement);
+}
+
+function syncItemCardDOMInPlace(existingCard, item) {
+  if (!existingCard || !item) return;
+
+  const titleEl = existingCard.querySelector('[data-sync-title="true"]');
+  if (titleEl && titleEl.textContent !== item.shortTitle) {
+    titleEl.textContent = item.shortTitle;
+  }
+
+  const subCountBadge = existingCard.querySelector('[data-sync-subcount="true"]');
+  if (subCountBadge) {
+    subCountBadge.textContent = `Gray Zone: ${item.grayZoneSubItems.length} sub-item(s)`;
+  }
+
+  const statusSelect = existingCard.querySelector('[data-sync-field="status"]');
+  if (statusSelect && !isElementFocused(statusSelect) && statusSelect.value !== item.status) {
+    statusSelect.value = item.status;
+  }
+
+  const titleInput = existingCard.querySelector('[data-sync-field="shortTitle"]');
+  if (titleInput && !isElementFocused(titleInput) && titleInput.value !== (item.shortTitle || "")) {
+    titleInput.value = item.shortTitle || "";
+  }
+
+  const qDisplay = existingCard.querySelector('[data-sync-display="questionHtml"]');
+  if (qDisplay) {
+    const cleanQ = sanitizeHTMLString(item.questionHtml || "");
+    if (sanitizeHTMLString(qDisplay.innerHTML) !== cleanQ) {
+      safeSetHTML(qDisplay, cleanQ);
+    }
+  }
+
+  const qEditor = existingCard.querySelector('[data-sync-field="questionHtml"]');
+  if (qEditor && !isElementFocused(qEditor)) {
+    const cleanQ = sanitizeHTMLString(item.questionHtml || "");
+    if (sanitizeHTMLString(qEditor.innerHTML) !== cleanQ) {
+      safeSetHTML(qEditor, cleanQ);
+    }
+  }
+
+  const exEditor = existingCard.querySelector('[data-sync-field="existingAnswerHtml"]');
+  if (exEditor && !isElementFocused(exEditor)) {
+    const cleanEx = sanitizeHTMLString(item.existingAnswerHtml || "");
+    if (sanitizeHTMLString(exEditor.innerHTML) !== cleanEx) {
+      safeSetHTML(exEditor, cleanEx);
+    }
+  }
+
+  // Update question links bar if present
+  const existingLinksBar = existingCard.querySelector(".question-links-bar");
+  if (existingLinksBar && Array.isArray(item.questionLinks) && item.questionLinks.length > 0) {
+    if (!isElementFocused(existingLinksBar)) {
+      existingLinksBar.replaceWith(buildQuestionLinksBarDOM(item, getItemPrefix(item)));
+    }
+  }
+
+  // Update each Gray Zone sub-item surgically (skipping ONLY the exact focused input/editor)
+  const dissectList = existingCard.querySelector(".dissect-list");
+  if (dissectList && Array.isArray(item.grayZoneSubItems)) {
+    const validSubIds = new Set(item.grayZoneSubItems.map((s) => s.id));
+
+    // Remove sub-item cards deleted remotely (unless user is focused inside one)
+    for (const domSub of Array.from(dissectList.querySelectorAll(".subitem-card"))) {
+      const domSubId = domSub.dataset.subId;
+      if (domSubId && !validSubIds.has(domSubId) && !isElementFocused(domSub)) {
+        domSub.remove();
+      }
+    }
+
+    item.grayZoneSubItems.forEach((sub, idx) => {
+      let subCard = dissectList.querySelector(`.subitem-card[data-sub-id="${CSS.escape(sub.id)}"]`);
+      if (!subCard) {
+        subCard = buildGrayZoneSubItemDOM(item, sub, idx, subCountBadge);
+        dissectList.appendChild(subCard);
+        return;
+      }
+
+      const textFields = ["prompt", "primaryAssignee", "optionalAssignee"];
+      for (const field of textFields) {
+        const inputEl = subCard.querySelector(`[data-sync-sub-field="${field}"]`);
+        const nextVal = sub[field] || "";
+        if (inputEl && !isElementFocused(inputEl) && inputEl.value !== nextVal) {
+          inputEl.value = nextVal;
+        }
+      }
+
+      const htmlFields = ["draftHtml", "optionalHtml", "finalHtml"];
+      for (const field of htmlFields) {
+        const editorEl = subCard.querySelector(`[data-sync-sub-field="${field}"]`);
+        const nextHtml = sanitizeHTMLString(sub[field] || "");
+        if (editorEl && !isElementFocused(editorEl) && sanitizeHTMLString(editorEl.innerHTML) !== nextHtml) {
+          safeSetHTML(editorEl, nextHtml);
+        }
+      }
+
+      const completeCheckbox = subCard.querySelector('[data-sync-sub-field="isComplete"]');
+      if (completeCheckbox) {
+        const nextChecked = Boolean(sub.isComplete);
+        if (completeCheckbox.checked !== nextChecked) {
+          completeCheckbox.checked = nextChecked;
+        }
+        const labelEl = completeCheckbox.closest(".complete-checkbox-label");
+        if (labelEl) {
+          labelEl.classList.toggle("checked", nextChecked);
+        }
+      }
+    });
+  }
+
+  // Update attachments section if user is not focused inside the attachment form
+  const attBlock = existingCard.querySelector(".block-attachments");
+  if (attBlock && !isElementFocused(attBlock)) {
+    attBlock.replaceWith(buildAttachmentsBlockDOM(item));
   }
 }
 
@@ -1405,45 +1707,66 @@ function scheduleCloudDiffSync() {
   if (!cloudSyncActive || !firebaseDb || !currentUser) return;
   if (cloudDiffSyncTimer) clearTimeout(cloudDiffSyncTimer);
   cloudDiffSyncTimer = setTimeout(() => {
+    cloudDiffSyncTimer = null;
     flushCloudDiffSync();
   }, 450);
 }
 
 async function flushCloudDiffSync() {
   if (!cloudSyncActive || !firebaseDb || !currentUser) return;
+  if (isFlushingCloudSync) {
+    pendingCloudResync = true;
+    return;
+  }
+
+  isFlushingCloudSync = true;
+  pendingCloudResync = false;
+
   try {
     const batch = firebaseDb.batch();
     let writeCount = 0;
+    let committedMetaJson = null;
+    const committedItems = [];
 
-    const currentMetaJson = JSON.stringify(appState.metadata);
-    if (currentMetaJson !== lastSyncedMetaJson) {
-      batch.set(getWorkspaceMetaRef(), {
-        ...appState.metadata,
-        _clientSessionId: CLIENT_SESSION_ID,
-        _updatedAt: Date.now(),
-        _updatedBy: currentUser.email || ""
-      });
-      lastSyncedMetaJson = currentMetaJson;
-      writeCount++;
-    }
-
-    const itemsCol = getWorkspaceItemsCollectionRef();
-    for (const item of appState.items) {
-      const serialized = JSON.stringify(item);
-      if (serialized !== lastSyncedItemJson.get(item.id)) {
-        batch.set(itemsCol.doc(item.id), {
-          ...item,
+    if (metaSyncReady) {
+      const currentMetaJson = serializeComparableMeta(appState.metadata);
+      if (currentMetaJson !== lastSyncedMetaJson) {
+        batch.set(getWorkspaceMetaRef(), {
+          ...appState.metadata,
           _clientSessionId: CLIENT_SESSION_ID,
           _updatedAt: Date.now(),
           _updatedBy: currentUser.email || ""
         });
-        lastSyncedItemJson.set(item.id, serialized);
+        committedMetaJson = currentMetaJson;
         writeCount++;
+      }
+    }
+
+    if (itemsSyncReady) {
+      const itemsCol = getWorkspaceItemsCollectionRef();
+      for (const item of appState.items) {
+        const serialized = JSON.stringify(item);
+        if (serialized !== lastSyncedItemJson.get(item.id)) {
+          batch.set(itemsCol.doc(item.id), {
+            ...item,
+            _clientSessionId: CLIENT_SESSION_ID,
+            _updatedAt: Date.now(),
+            _updatedBy: currentUser.email || ""
+          });
+          committedItems.push({ id: item.id, serialized });
+          writeCount++;
+        }
       }
     }
 
     if (writeCount > 0) {
       await batch.commit();
+      if (committedMetaJson !== null) {
+        lastSyncedMetaJson = committedMetaJson;
+      }
+      for (const entry of committedItems) {
+        lastSyncedItemJson.set(entry.id, entry.serialized);
+      }
       updateSyncStatusUI("live", `Live Synced (${writeCount} update${writeCount > 1 ? "s" : ""}) · ${formatShortTime(new Date().toISOString())}`);
     }
   } catch (err) {
@@ -1452,6 +1775,12 @@ async function flushCloudDiffSync() {
       handleFirestorePermissionDenied();
     } else {
       updateSyncStatusUI("error", `Cloud sync error: ${err.message}`);
+    }
+  } finally {
+    isFlushingCloudSync = false;
+    if (pendingCloudResync) {
+      pendingCloudResync = false;
+      scheduleCloudDiffSync();
     }
   }
 }
@@ -1477,6 +1806,8 @@ async function pushFullStateToFirestore() {
       });
     }
     await batch.commit();
+    metaSyncReady = true;
+    itemsSyncReady = true;
     snapshotCurrentSyncHashes();
     updateSyncStatusUI("live", `Live Cloud Sync Active · Uploaded ${formatShortTime(new Date().toISOString())}`);
     showAuthFeedback("Workspace successfully uploaded to Firebase Firestore.");
@@ -1505,6 +1836,12 @@ function handleFirestorePermissionDenied() {
 
 function stopFirestoreRealtimeSync() {
   cloudSyncActive = false;
+  metaSyncReady = false;
+  itemsSyncReady = false;
+  isFlushingCloudSync = false;
+  pendingCloudResync = false;
+  lastSyncedMetaJson = "";
+  lastSyncedItemJson.clear();
   if (cloudDiffSyncTimer) {
     clearTimeout(cloudDiffSyncTimer);
     cloudDiffSyncTimer = null;
@@ -1525,6 +1862,7 @@ function startFirestoreRealtimeSync() {
   updateSyncStatusUI("live", "Connecting to Firebase Live Sync...");
 
   let hasCheckedInitialSeed = false;
+  let hasReceivedInitialItemsSnapshot = false;
 
   // 1. Real-time Metadata listener
   unsubscribeMetaListener = getWorkspaceMetaRef().onSnapshot(
@@ -1542,19 +1880,53 @@ function startFirestoreRealtimeSync() {
 
       const raw = docSnap.data();
       if (docSnap.metadata.hasPendingWrites || raw._clientSessionId === CLIENT_SESSION_ID) {
+        metaSyncReady = true;
         return;
       }
 
       const cleanMeta = stripCloudMetaFields(raw);
-      appState.metadata = { ...appState.metadata, ...cleanMeta };
-      lastSyncedMetaJson = JSON.stringify(appState.metadata);
+      const isInitialMeta = !metaSyncReady;
+      const prevMetaBase = !isInitialMeta && lastSyncedMetaJson ? JSON.parse(lastSyncedMetaJson) : null;
+      const mergedMeta = { ...appState.metadata, ...cleanMeta };
+      let keptLocalMetaChanges = false;
+
+      if (prevMetaBase) {
+        for (const field of ["programName", "preparedBy", "implementationDate", "oneDriveFolderUrl"]) {
+          if (appState.metadata[field] !== prevMetaBase[field] && appState.metadata[field] !== cleanMeta[field]) {
+            mergedMeta[field] = appState.metadata[field];
+            keptLocalMetaChanges = true;
+          }
+        }
+      }
+
+      appState.metadata = mergedMeta;
+      lastSyncedMetaJson = serializeComparableMeta({ ...appState.metadata, ...cleanMeta });
+      metaSyncReady = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
 
-      const activeId = document.activeElement?.id || "";
-      if (!activeId.startsWith("meta-")) {
-        renderMetadataFields();
+      const metaFieldMap = [
+        ["meta-program-name", "programName"],
+        ["meta-prepared-by", "preparedBy"],
+        ["meta-impl-date", "implementationDate"],
+        ["meta-onedrive-url", "oneDriveFolderUrl"]
+      ];
+      for (const [elId, prop] of metaFieldMap) {
+        const inputEl = document.getElementById(elId);
+        if (inputEl && !isElementFocused(inputEl)) {
+          inputEl.value = appState.metadata[prop] || "";
+        }
       }
-      updateSyncStatusUI("live", `Live Sync · Metadata updated · ${formatShortTime(new Date().toISOString())}`);
+      const oneDriveOpenBtn = document.getElementById("btn-open-onedrive");
+      if (oneDriveOpenBtn) {
+        oneDriveOpenBtn.disabled = !appState.metadata.oneDriveFolderUrl;
+      }
+
+      if (keptLocalMetaChanges) {
+        scheduleCloudDiffSync();
+      }
+      if (!isInitialMeta) {
+        updateSyncStatusUI("live", `Live Sync · Metadata updated · ${formatShortTime(new Date().toISOString())}`);
+      }
     },
     (err) => {
       console.error("Firestore meta listener error:", err);
@@ -1580,8 +1952,10 @@ function startFirestoreRealtimeSync() {
         return;
       }
 
+      const isInitialSnapshot = !hasReceivedInitialItemsSnapshot;
       let remoteChangedCodes = [];
       let needsFullRender = false;
+      let shouldResyncMergedLocalEdits = false;
 
       querySnap.docChanges().forEach((change) => {
         if (change.type !== "added" && change.type !== "modified") return;
@@ -1590,25 +1964,47 @@ function startFirestoreRealtimeSync() {
           return;
         }
 
-        const cleanItem = stripCloudMetaFields(raw);
-        const idx = appState.items.findIndex((i) => i.id === cleanItem.id);
-        if (idx >= 0) {
-          appState.items[idx] = cleanItem;
-          normalizeLoadedState(appState);
-          lastSyncedItemJson.set(cleanItem.id, JSON.stringify(appState.items[idx]));
+        const normalizedRemote = normalizeSingleItem(stripCloudMetaFields(raw));
+        const idx = appState.items.findIndex((i) => i.id === normalizedRemote.id);
+        if (idx < 0) return;
 
-          // Update ONLY this card in the DOM if the user's cursor is not currently inside it
-          const existingCard = document.getElementById(`card-${cleanItem.id}`);
-          const userFocusedInsideCard = existingCard && existingCard.contains(document.activeElement);
-          if (existingCard && !userFocusedInsideCard) {
-            const newCard = buildItemCardDOM(appState.items[idx]);
-            existingCard.replaceWith(newCard);
-          } else if (!existingCard) {
-            needsFullRender = true;
+        const remoteSerialized = JSON.stringify(normalizedRemote);
+        const baseJson = !isInitialSnapshot ? lastSyncedItemJson.get(normalizedRemote.id) : null;
+
+        if (!baseJson) {
+          // Initial load: accept authoritative cloud data without modifying existing Firestore records
+          appState.items[idx] = normalizedRemote;
+        } else {
+          // Ongoing live session: 3-way merge preserves any unsent local edits on other fields
+          const baseItem = JSON.parse(baseJson);
+          const { mergedItem, keptLocalChanges } = mergeRemoteItemWithLocalEdits(
+            appState.items[idx],
+            normalizedRemote,
+            baseItem
+          );
+          appState.items[idx] = mergedItem;
+          if (keptLocalChanges) {
+            shouldResyncMergedLocalEdits = true;
           }
-          remoteChangedCodes.push(appState.items[idx].code);
         }
+
+        lastSyncedItemJson.set(normalizedRemote.id, remoteSerialized);
+
+        const existingCard = document.getElementById(`card-${normalizedRemote.id}`);
+        if (existingCard) {
+          if (!existingCard.contains(document.activeElement)) {
+            existingCard.replaceWith(buildItemCardDOM(appState.items[idx]));
+          } else {
+            syncItemCardDOMInPlace(existingCard, appState.items[idx]);
+          }
+        } else {
+          needsFullRender = true;
+        }
+        remoteChangedCodes.push(appState.items[idx].code);
       });
+
+      hasReceivedInitialItemsSnapshot = true;
+      itemsSyncReady = true;
 
       if (remoteChangedCodes.length > 0) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
@@ -1623,9 +2019,12 @@ function startFirestoreRealtimeSync() {
             ? `Live Sync · Item #${remoteChangedCodes[0]} updated`
             : `Live Sync · ${remoteChangedCodes.length} items synced`;
         updateSyncStatusUI("live", `${labelText} · ${formatShortTime(new Date().toISOString())}`);
-      } else {
-        snapshotCurrentSyncHashes();
+      } else if (isInitialSnapshot) {
         updateSyncStatusUI("live", `Live Sync Connected · ${formatShortTime(new Date().toISOString())}`);
+      }
+
+      if (shouldResyncMergedLocalEdits) {
+        scheduleCloudDiffSync();
       }
     },
     (err) => {
@@ -1958,6 +2357,15 @@ function initApp() {
     stopFirestoreRealtimeSync();
     await firebaseAuth.signOut();
     showAuthFeedback("Signed out. App is now in Local Auto-Save mode.");
+  });
+
+  // Flush any debounced edits immediately if the user switches tabs or minimizes the browser
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden" && cloudDiffSyncTimer) {
+      clearTimeout(cloudDiffSyncTimer);
+      cloudDiffSyncTimer = null;
+      flushCloudDiffSync();
+    }
   });
 
   // Initialize Firebase Authentication & Firestore Real-Time Sync
